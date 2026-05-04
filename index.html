@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BHP Skierowania v1.2.1</title>
+<title>BHP Skierowania v1.2.2</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -749,7 +749,7 @@
 
 </main>
 
-<footer>BHP Skierowania &nbsp;<strong style="color:var(--accent)">v1.2.1</strong> &nbsp;|&nbsp; 2026-05-04 &nbsp;|&nbsp; Dane przechowywane lokalnie w przegladarce</footer>
+<footer>BHP Skierowania &nbsp;<strong style="color:var(--accent)">v1.2.2</strong> &nbsp;|&nbsp; 2026-05-04 &nbsp;|&nbsp; Dane przechowywane lokalnie w przegladarce</footer>
 
 <!-- ===================== MODALS ===================== -->
 
@@ -1415,6 +1415,7 @@ function updateSkierowaniePreview() {
 
 
 // ========================= WZOR XLSM (base64) =========================
+
 
 
 // ========================= ASSETS =========================
@@ -3250,7 +3251,7 @@ function formatDate(iso) {
   return `${d}.${m}.${y}`;
 }
 
-function xmlEscape(s) {
+function xe(s) {
   if (s === null || s === undefined) return '';
   return String(s)
     .replace(/&/g, '&amp;')
@@ -3264,7 +3265,7 @@ async function generujPDF() {
   const sId = document.getElementById('sk-stanowisko').value;
   if (!pId || !sId) { alert('Wybierz pracownika i stanowisko.'); return; }
 
-  const pracownik = DB.pracownicy.find(p => p.id === pId);
+  const pracownik  = DB.pracownicy.find(p => p.id === pId);
   const stanowisko = DB.stanowiska.find(s => s.id === sId);
 
   const kat = (k) => stanowisko.czynniki
@@ -3272,8 +3273,8 @@ async function generujPDF() {
     .map(c => c.nazwa + (c.wartosc ? ' \u2013 ' + c.wartosc + (c.jednostka ? ' ' + c.jednostka : '') : ''))
     .join(', ');
 
-  const miejscowosc = document.getElementById('sk-miejscowosc') ? document.getElementById('sk-miejscowosc').value : '';
-  const dataVal     = document.getElementById('sk-data').value;
+  const miejscowosc = (document.getElementById('sk-miejscowosc') || {}).value || '';
+  const dataVal     = document.getElementById('sk-data').value || '';
   const miejscData  = [miejscowosc, dataVal ? formatDate(dataVal) : ''].filter(Boolean).join(', ');
   const rodzaj      = document.getElementById('sk-rodzaj').value;
   const tytul       = pracownik.plec === 'M' ? 'Pana:' : 'Pani\u0105:';
@@ -3290,60 +3291,72 @@ async function generujPDF() {
 
   let xml = XML_TEMPLATE;
 
-  // Zamiany w XML - te same co w serwerze Python
+  // Kazda zamiana uzywa PELNEGO unikalnego ciagu - zadnych kolizji
+
+  // 1. Miejscowosc i data - zastap etykiete "miejscowość i data"
+  //    Ale tez usun taby przed i dodaj wyrownanie do prawej
   const TAB11 = '<w:tab/>\n      <w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:t>\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>';
-  xml = xml.replace(TAB11, '<w:t>' + xmlEscape(miejscData) + '</w:t>');
-  // Dodaj wyrownanie do prawej
-  xml = xml.replace(
-    '<w:t>' + xmlEscape(miejscData) + '</w:t></w:r>',
-    '<w:t>' + xmlEscape(miejscData) + '</w:t></w:r>'
-  );
-  // Znajdz pPr przed miejscData i dodaj jc
-  const mdIdx = xml.indexOf(xmlEscape(miejscData));
-  const pprStart = xml.lastIndexOf('<w:pPr>', mdIdx);
-  const pprEnd   = xml.indexOf('</w:pPr>', pprStart) + 8;
-  xml = xml.slice(0, pprEnd - 8) + '<w:jc w:val="right"/>' + xml.slice(pprEnd - 8);
+  if (xml.includes(TAB11)) {
+    xml = xml.replace(TAB11, '<w:t>' + xe(miejscData) + '</w:t>');
+    // Dodaj wyrownanie do prawej w pPr tego akapitu
+    const mdIdx = xml.indexOf(xe(miejscData));
+    const pprS  = xml.lastIndexOf('<w:pPr>', mdIdx);
+    const pprE  = xml.indexOf('</w:pPr>', pprS);
+    xml = xml.slice(0, pprE) + '<w:jc w:val="right"/>' + xml.slice(pprE);
+  }
 
+  // 2. Rodzaj badan - unikalny ciag (jedyny z 11 kropkami)
   xml = xml.replace(
-    '\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026.</w:t>',
-    xmlEscape(rodzaj) + '</w:t>', );
+    '<w:t>\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026.</w:t>',
+    '<w:t>' + xe(rodzaj) + '</w:t>');
 
+  // 3. Pana/Pania - unikalny (51 kropek z etykieta)
   xml = xml.replace(
-    'Pana/Pani\u0105: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026</w:t>',
-    xmlEscape(tytul + ' ' + imieNaz) + '</w:t>');
+    '<w:t>Pana/Pani\u0105: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026</w:t>',
+    '<w:t>' + xe(tytul + ' ' + imieNaz) + '</w:t>');
 
+  // 4. PESEL - unikalny (etykieta + 52 kropki)
   xml = xml.replace(
-    'Nr PESEL/ Data urodzenia: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>',
-    'Nr PESEL/ Data urodzenia: ' + xmlEscape(pesel) + '</w:t>');
+    '<w:t>Nr PESEL/ Data urodzenia: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>',
+    '<w:t>Nr PESEL/ Data urodzenia: ' + xe(pesel) + '</w:t>');
 
+  // 5. Adres - unikalny (etykieta + 52 kropki)
   xml = xml.replace(
-    'Zamieszka\u0142y/a: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>',
-    'Zamieszka\u0142y/a: ' + xmlEscape(adres) + '</w:t>');
+    '<w:t>Zamieszka\u0142y/a: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>',
+    '<w:t>Zamieszka\u0142y/a: ' + xe(adres) + '</w:t>');
 
+  // 6. Stanowisko - unikalny paraId 64CAD31B - zastap przez paraId
   xml = xml.replace(
-    '\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>',
-    xmlEscape(stNazwa) + '</w:t>');
+    'paraId="64CAD31B"',
+    'paraId="64CAD31B" data-filled="1"');
+  const stPara = xml.indexOf('paraId="64CAD31B" data-filled="1"');
+  const stTstart = xml.indexOf('<w:t>', stPara);
+  const stTend   = xml.indexOf('</w:t>', stTstart) + 6;
+  xml = xml.slice(0, stTstart) + '<w:t>' + xe(stNazwa) + '</w:t>' + xml.slice(stTend);
 
-  // Czynniki - hideMark indeksy 2,5,8,11,14,16
+  // 7. Czynniki - hideMark indeksy 2,5,8,11,14,16
   const wartosci = {2: fiz, 5: pyly, 8: chem, 11: bio, 14: inne, 16: String(laczna)};
-  const hideRegex = /<w:hideMark\/>/g;
+  const hideTag = '<w:hideMark/>';
   const positions = [];
-  let m;
-  while ((m = hideRegex.exec(xml)) !== null) positions.push(m.index);
+  let searchFrom = 0;
+  while (true) {
+    const pos = xml.indexOf(hideTag, searchFrom);
+    if (pos === -1) break;
+    positions.push(pos);
+    searchFrom = pos + 1;
+  }
 
-  // Od konca zeby nie przesuwac indeksow
   for (const idx of [16,14,11,8,5,2]) {
     if (idx >= positions.length) continue;
     const pos = positions[idx];
     const tcEnd = xml.indexOf('</w:tc>', pos);
-    const old = xml.slice(pos + '<w:hideMark/>'.length, tcEnd);
-    const neu = old.replace(/<w:t>[^<]*<\/w:t>/, '<w:t>' + xmlEscape(wartosci[idx]) + '</w:t>');
-    xml = xml.slice(0, pos + '<w:hideMark/>'.length) + neu + xml.slice(tcEnd);
+    const seg = xml.slice(pos + hideTag.length, tcEnd);
+    const neu = seg.replace(/<w:t>[^<]*<\/w:t>/, '<w:t>' + xe(wartosci[idx]) + '</w:t>');
+    xml = xml.slice(0, pos + hideTag.length) + neu + xml.slice(tcEnd);
   }
 
   // Buduj docx przez JSZip
-  const b64 = WZOR_DOCX_B64;
-  const bin = atob(b64);
+  const bin = atob(WZOR_DOCX_B64);
   const arr = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
 
@@ -3357,7 +3370,7 @@ async function generujPDF() {
   });
 
   const url = URL.createObjectURL(out);
-  const a = document.createElement('a');
+  const a   = document.createElement('a');
   a.href = url;
   const safeName = (pracownik.imie + '_' + pracownik.nazwisko).replace(/\s+/g, '_');
   a.download = 'skierowanie_' + safeName + '_' + (dataVal || 'brak_daty') + '.docx';
