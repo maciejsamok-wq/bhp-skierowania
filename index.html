@@ -1421,215 +1421,163 @@ function formatDate(iso) {
 async function generujPDF() {
   const pId = document.getElementById('sk-pracownik').value;
   const sId = document.getElementById('sk-stanowisko').value;
-
-  if (!pId || !sId) {
-    alert('Wybierz pracownika i stanowisko przed wygenerowaniem skierowania.');
-    return;
-  }
+  if (!pId || !sId) { alert('Wybierz pracownika i stanowisko.'); return; }
 
   const pracownik = DB.pracownicy.find(p => p.id === pId);
   const stanowisko = DB.stanowiska.find(s => s.id === sId);
-  const rodzaj = document.getElementById('sk-rodzaj').value;
-  const data = document.getElementById('sk-data').value;
-  const pracodawca = document.getElementById('sk-pracodawca').value || '';
+  const rodzaj   = document.getElementById('sk-rodzaj').value;
+  const data     = document.getElementById('sk-data').value;
+  const pracodawca     = document.getElementById('sk-pracodawca').value || '';
   const adresPracodawcy = document.getElementById('sk-adres').value || '';
-  const miejscowosc = document.getElementById('sk-miejscowosc') ? document.getElementById('sk-miejscowosc').value : '';
+  const miejscowosc    = document.getElementById('sk-miejscowosc') ? document.getElementById('sk-miejscowosc').value : '';
 
-  // Zaladuj pdf-lib i fontkit
-  const { PDFDocument, rgb, StandardFonts } = PDFLib;
+  const { PDFDocument, rgb } = PDFLib;
 
-  // Dekoduj assets
-  function b64ToUint8(b64) {
-    const bin = atob(b64);
-    const arr = new Uint8Array(bin.length);
+  function b64ToBytes(b64) {
+    const bin = atob(b64); const arr = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
     return arr;
   }
 
-  const pngBytes = b64ToUint8(WZOR_PNG_B64);
-  const fontBytes = b64ToUint8(NOTO_SANS_B64);
-
-  // Stworz dokument PDF
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
-
-  // Osadz czcionke Noto Sans (ma polskie znaki)
-  const font = await pdfDoc.embedFont(fontBytes);
-
-  // Osadz wzor jako obraz tla
-  const bgImage = await pdfDoc.embedPng(pngBytes);
-
-  // Dodaj strone A4
+  const font = await pdfDoc.embedFont(b64ToBytes(NOTO_SANS_B64));
+  const bgImage = await pdfDoc.embedPng(b64ToBytes(WZOR_PNG_B64));
   const page = pdfDoc.addPage([595.32, 841.92]);
-  const { width, height } = page.getSize(); // 595.32 x 841.92
+  const H = 841.92;
 
-  // Narysuj tlo (caly wzor)
-  page.drawImage(bgImage, {
-    x: 0,
-    y: 0,
-    width: width,
-    height: height,
-  });
+  // Tlo - caly wzor formularza
+  page.drawImage(bgImage, { x: 0, y: 0, width: 595.32, height: H });
 
-  // ===== HELPER: rysuj tekst =====
-  // UWAGA: pdf-lib uzywa ukladu wspolrzednych od DOLU (y=0 = dol strony)
-  // Nasze pomiary sa od GORY, wiec: y_pdf = height - y_from_top
-  function drawText(text, x_from_left, y_from_top, size, bold) {
-    if (!text) return;
+  // Helper: y_kalibracja jest od gory, pdf-lib liczy od dolu
+  // Tekst rysujemy na linii bazowej, wiec odejmujemy rozmiar czcionki
+  function put(text, x, y_top, size) {
+    if (!text && text !== 0) return;
     page.drawText(String(text), {
-      x: x_from_left,
-      y: height - y_from_top,
-      size: size || 9,
+      x: x,
+      y: H - y_top,
+      size: size || 8.5,
       font: font,
       color: rgb(0, 0, 0),
     });
   }
 
-  // Funkcja do zawijania tekstu w okreslona szerokosc
-  function wrapText(text, maxWidth, size) {
+  // Zawijanie tekstu do max szerokosci (zwraca tablice linii)
+  function wrap(text, maxW, size) {
     if (!text) return [];
-    const words = text.split(' ');
-    const lines = [];
-    let current = '';
+    const words = String(text).split(' ');
+    const lines = []; let cur = '';
     for (const w of words) {
-      const test = current ? current + ' ' + w : w;
-      const tw = font.widthOfTextAtSize(test, size);
-      if (tw > maxWidth && current) {
-        lines.push(current);
-        current = w;
-      } else {
-        current = test;
-      }
+      const test = cur ? cur + ' ' + w : w;
+      if (font.widthOfTextAtSize(test, size) > maxW && cur) { lines.push(cur); cur = w; }
+      else cur = test;
     }
-    if (current) lines.push(current);
+    if (cur) lines.push(cur);
     return lines;
   }
 
-  const S = 8.5; // Rozmiar czcionki bazowy
+  const S = 8.5;   // rozmiar standardowy
+  const LH = 9.5;  // interlinea
 
-  // === 1. OZNACZENIE PRACODAWCY (ramka gora lewa) ===
-  // Ramka na obrazie: ~x=18-132, y=9-43 (od gory)
-  // Tekst zaczyna sie od ~y=18
-  const pracodawcaFull = [pracodawca, adresPracodawcy].filter(Boolean).join(', ');
-  if (pracodawcaFull) {
-    const lines = wrapText(pracodawcaFull, 112, 7.5);
-    lines.forEach((line, i) => {
-      drawText(line, 20, 20 + i * 9, 7.5);
-    });
-  }
+  // ── 1. PRACODAWCA (ramka gora lewa) ──────────────────────────────
+  // x=152.5, y=67.2  =>  szerokos ramki do ~x=330 => max ~177pt
+  const pLines = wrap([pracodawca, adresPracodawcy].filter(Boolean).join(', '), 175, S);
+  pLines.forEach((l, i) => put(l, 20, 67.2 + i * LH, S));
 
-  // === 2. MIEJSCOWOSC I DATA (gora prawa, nad linia przerywana) ===
-  const miejscData = (miejscowosc || '') + (miejscowosc && data ? ', ' : '') + (data ? formatDate(data) : '');
-  if (miejscData) {
-    drawText(miejscData, 338, 41, 8.5);
-  }
+  // ── 2. MIEJSCOWOSC I DATA ─────────────────────────────────────────
+  // x=526.2, y=35.7  (prawa strona, nad linia przerywana)
+  const mData = [miejscowosc, data ? formatDate(data) : ''].filter(Boolean).join(', ');
+  // Tekst wyrownany do prawej przy x~580
+  const mW = font.widthOfTextAtSize(mData, S);
+  put(mData, Math.min(526.2, 576 - mW), 38, S);
 
-  // === 3. RODZAJ BADAN - podkreslony tekst pod "SKIEROWANIE NA BADANIA LEKARSKIE" ===
-  // Na wzorze jest juz "okresowe" wpisane - trzeba nadpisac odpowiednim
-  // Pozycja: wycentrowany, ~y=163 od gory (pod naglowkiem)
-  // Najpierw zakryjmy stary tekst bialym prostokqtem
-  page.drawRectangle({
-    x: 200,
-    y: height - 170,
-    width: 196,
-    height: 14,
-    color: rgb(1, 1, 1),
-  });
-  const rodzajLabels = { 'wstepne': 'wstępne', 'okresowe': 'okresowe', 'kontrolne': 'kontrolne' };
-  const rodzajText = rodzajLabels[rodzaj] || rodzaj;
-  const rodzajW = font.widthOfTextAtSize(rodzajText, 10);
-  drawText(rodzajText, (width - rodzajW) / 2, 163, 10);
-  // Podkreslenie
-  page.drawLine({
-    start: { x: (width - rodzajW) / 2, y: height - 165 },
-    end: { x: (width - rodzajW) / 2 + rodzajW, y: height - 165 },
-    thickness: 0.5,
-    color: rgb(0, 0, 0),
-  });
+  // ── 3. RODZAJ BADAN ───────────────────────────────────────────────
+  // Zakryj stare "okresowe" bialym prostokatem, wpisz wlasciwy rodzaj
+  // x=332.6, y=105.1
+  page.drawRectangle({ x: 240, y: H - 112, width: 160, height: 12, color: rgb(1,1,1) });
+  const rodzajMap = { wstepne: 'wst\u0119pne', okresowe: 'okresowe', kontrolne: 'kontrolne' };
+  const rodzajTxt = rodzajMap[rodzaj] || rodzaj;
+  const rW = font.widthOfTextAtSize(rodzajTxt, 10);
+  // wycentruj wzgledem srodka strony
+  page.drawText(rodzajTxt, { x: (595.32 - rW) / 2, y: H - 107, size: 10, font, color: rgb(0,0,0) });
+  // podkreslenie
+  page.drawLine({ start: { x: (595.32-rW)/2, y: H-109 }, end: { x: (595.32+rW)/2, y: H-109 }, thickness: 0.5, color: rgb(0,0,0) });
 
-  // === 4. PANIA/PAN + IMIE NAZWISKO ===
-  // Linia "Panią: ..." - "Panią:" jest na ~x=222, y=213
-  // Dane zaczynaja sie od ~x=258 (po "Panią:")
-  const tytul = pracownik.plec === 'M' ? 'Panem:' : 'Panią:';
-  // Zakryj "Panią:" i nadpisz odpowiednim tytułem
-  page.drawRectangle({ x: 190, y: height - 218, width: 60, height: 11, color: rgb(1,1,1) });
-  drawText(tytul, 191, 213, S);
-  const pelneImie = pracownik.imie + ' ' + pracownik.nazwisko;
-  drawText(pelneImie, 258, 213, S);
+  // ── 4. IMIE I NAZWISKO (po "Panią:" / "Panem:") ───────────────────
+  // x=502.7, y=141.9  (ale to jest za daleko w prawo - kalibracja wskazuje koniec linii)
+  // Bezpieczniejsze: zaczynamy od stalego x po etykiecie
+  // "Panią:" konczy sie ok x=255, wiec tekst od ~260
+  const tytul = (pracownik.plec === 'M') ? 'Panem:' : 'Pani\u0105:';
+  // Zakryj "Panią:" i zastap wlasciwym
+  page.drawRectangle({ x: 210, y: H-148, width: 50, height: 11, color: rgb(1,1,1) });
+  put(tytul, 211, 141.9, S);
+  put(pracownik.imie + ' ' + pracownik.nazwisko, 260, 141.9, S);
 
-  // === 5. PESEL / DATA URODZENIA ===
-  // Linia "Nr PESEL / DATA URODZENIA**): ..." y~233
-  // Dane po ~x=337
+  // ── 5. PESEL ──────────────────────────────────────────────────────
+  // x=502.7, y=153.1 => kalibracja jest za daleko, uzyj stalej pozycji
+  // "Nr PESEL / DATA URODZENIA**):" konczy sie ok x=310
   const peselVal = pracownik.pesel || (pracownik.dataUr ? formatDate(pracownik.dataUr) : '');
-  drawText(peselVal, 337, 233, S);
+  put(peselVal, 313, 153.1, S);
 
-  // === 6. ZAMIESZKALA ===
-  // "Zamieszkałą:" y~253, dane po ~x=270
+  // ── 6. ZAMIESZKALA ────────────────────────────────────────────────
+  // "Zamieszkałą:" konczy sie ok x=244
   if (pracownik.adresZam) {
-    drawText(pracownik.adresZam, 270, 253, S);
+    put(pracownik.adresZam, 247, 163.7, S);
   }
 
-  // === 7. STANOWISKO ===
-  // Ramka stanowiska y~328-424, tekst zaczyna sie od ~y=355
-  // Na obrazie: "zatrudnioną na stanowisku..." ~y=275
-  // Linia przerywana "określenie stanowiska..." ~y=303
-  // Ramka: ~y=328-424
-  const stNazwa = stanowisko.nazwa + (stanowisko.dzial ? ' (' + stanowisko.dzial + ')' : '');
-  const stLines = wrapText(stNazwa, 520, S);
-  stLines.forEach((line, i) => {
-    drawText(line, 25, 360 + i * 11, S);
-  });
+  // ── 7. STANOWISKO (w ramce) ───────────────────────────────────────
+  // Ramka jest szeroka ~530pt, zaczyna sie od x~32
+  // y=198.9 to wskazany punkt - ramka jest pod nim
+  // Srednia y ramki to ok y_top+20
+  const stTxt = stanowisko.nazwa + (stanowisko.dzial ? ' (' + stanowisko.dzial + ')' : '');
+  const stLines = wrap(stTxt, 500, S);
+  stLines.forEach((l, i) => put(l, 34, 210 + i * LH, S));
 
-  // === 8. TABELA CZYNNIKOW ===
-  // Tabela na obrazie y~535-962 (od gory)
-  // Kolumna wartosci zaczyna sie od ~x=220 (po etykiecie)
-  // Wiersze (srodek kazdego wiersza):
+  // ── 8. TABELA CZYNNIKOW ───────────────────────────────────────────
+  // Kalibracja dala wspolrzedne prawej kolumny (gdzie wpisywac)
+  // Ale x jest za daleko w prawo (okolice 521) - to musi byc poczatek kolumny
+  // Sprawdzamy: kolumna etykiet konczy sie ok x=210, wiec wartosci od ~215
+  const TAB_X = 215;  // poczatek kolumny wartosci
+  const TAB_MAX_W = 370; // max szerokosc tekstu w kolumnie
+
+  // y z kalibracji to srodek wiersza - wpisujemy tam
   const tabRows = [
-    { key: 'fizyczne',    y: 575 },  // I. Czynniki fizyczne
-    { key: 'pyly',        y: 655 },  // II. Pyly
-    { key: 'chemiczne',   y: 735 },  // III. Czynniki chemiczne
-    { key: 'biologiczne', y: 815 },  // IV. Czynniki biologiczne
-    { key: 'inne',        y: 900 },  // V. Inne
+    { key: 'fizyczne',    y: 378.6 },
+    { key: 'pyly',        y: 405.3 },
+    { key: 'chemiczne',   y: 449.0 },
+    { key: 'biologiczne', y: 491.2 },
+    { key: 'inne',        y: 551.9 },
   ];
 
-  let totalCzynniki = 0;
-
+  let total = 0;
   tabRows.forEach(row => {
     const items = stanowisko.czynniki.filter(c => c.kategoria === row.key);
-    if (items.length > 0) {
-      totalCzynniki += items.length;
-      const czStr = items.map(c => {
-        let s = c.nazwa;
-        if (c.wartosc) s += ' – ' + c.wartosc + (c.jednostka ? ' ' + c.jednostka : '');
-        return s;
-      }).join(', ');
-      const czLines = wrapText(czStr, 355, 7.5);
-      czLines.forEach((line, i) => {
-        drawText(line, 222, row.y - 4 + i * 9, 7.5);
-      });
-    }
+    if (!items.length) return;
+    total += items.length;
+    const txt = items.map(c => {
+      let s = c.nazwa;
+      if (c.wartosc) s += ' \u2013 ' + c.wartosc + (c.jednostka ? '\u00a0' + c.jednostka : '');
+      return s;
+    }).join(', ');
+    const lines = wrap(txt, TAB_MAX_W, 8);
+    lines.forEach((l, i) => put(l, TAB_X, row.y + i * LH, 8));
   });
 
-  // === 9. LACZNA LICZBA CZYNNIKOW ===
-  // Ramka ~y=962-1005, liczba po prawej ~x=555, y=985
-  drawText(String(totalCzynniki), 555, 987, 10);
+  // ── 9. LACZNA LICZBA ─────────────────────────────────────────────
+  // x=486.7, y=585.5 - wyrownanie do prawej przed krawedzia ramki (~x=577)
+  const totalW = font.widthOfTextAtSize(String(total), 9);
+  put(total, 572 - totalW, 585.5, 9);
 
-  // === 10. PODPIS PRACODAWCY ===
-  // Linia podpisu ~y=1095, tekst podpisu ~y=1110 (od gory)
-  // Na wzorze jest miejsce na podpis - nic nie wpisujemy (to musi byc odreczny)
-
-  // Zapisz PDF
-  const pdfBytes = await pdfDoc.save();
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  // Zapisz
+  const bytes = await pdfDoc.save();
+  const blob = new Blob([bytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const safeName = (pracownik.imie + '_' + pracownik.nazwisko).replace(/\s+/g, '_');
-  a.download = 'skierowanie_' + safeName + '_' + (data || 'brak_daty') + '.pdf';
+  a.download = 'skierowanie_' + (pracownik.imie+'_'+pracownik.nazwisko).replace(/\s+/g,'_') + '_' + (data||'brak_daty') + '.pdf';
   a.click();
   URL.revokeObjectURL(url);
 }
-
 
 // ========================= INIT =========================
 function init() {
