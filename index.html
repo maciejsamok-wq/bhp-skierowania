@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BHP Skierowania - System Medycyny Pracy</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f2ed;
+    --surface: #ffffff;
+    --surface2: #eeeae2;
+    --border: #d4cfc4;
+    --border-strong: #b0a99a;
+    --text: #1a1814;
+    --text-mid: #5a5548;
+    --text-light: #8a8278;
+    --accent: #c8420a;
+    --accent-soft: #f5e8e2;
+    --accent-dark: #9e3208;
+    --green: #2d6a4f;
+    --green-soft: #e2f0ea;
+    --blue: #1a4f7a;
+    --blue-soft: #e2ecf5;
+    --yellow: #b58a00;
+    --yellow-soft: #fdf6e0;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
+    --radius: 6px;
+    --font: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--text);
+    color: white;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #d4cfc4;
+  }
+
+  .logo span {
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0;
+    margin-right: 8px;
+  }
+
+  header .sep { width: 1px; height: 20px; background: #3a3830; }
+
+  .header-title {
+    font-size: 13px;
+    color: #8a8278;
+    font-weight: 400;
+  }
+
+  /* TABS */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+  }
+
+  nav button {
+    background: none;
+    border: none;
+    padding: 14px 20px 12px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+
+  nav button:hover { color: var(--text); }
+
+  nav button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  nav button .badge {
+    background: var(--surface2);
+    color: var(--text-mid);
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 400;
+  }
+
+  nav button.active .badge {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  /* MAIN */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 24px;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* PAGE HEADER */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    gap: 16px;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .page-header p {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-top: 3px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent-dark);
+  }
+  .btn-primary:hover { background: var(--accent-dark); }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .btn-secondary:hover { background: var(--surface2); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-mid);
+    border-color: transparent;
+    padding: 6px 10px;
+  }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+
+  .btn-danger {
+    background: transparent;
+    color: #c0392b;
+    border-color: transparent;
+  }
+  .btn-danger:hover { background: #fde8e6; }
+
+  .btn-green {
+    background: var(--green);
+    color: white;
+    border-color: #1e4d38;
+  }
+  .btn-green:hover { background: #1e4d38; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* TABLE */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    padding: 10px 16px;
+    text-align: left;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+
+  .empty-row td {
+    text-align: center;
+    color: var(--text-light);
+    padding: 32px;
+    font-style: italic;
+  }
+
+  /* TAGS */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--mono);
+  }
+
+  .tag-numeric { background: var(--yellow-soft); color: var(--yellow); }
+  .tag-boolean { background: var(--blue-soft); color: var(--blue); }
+  .tag-chemical { background: #fde8f6; color: #7a1f6a; }
+  .tag-dust { background: #f0ede6; color: #5a4a2a; }
+  .tag-noise { background: #e8f0fd; color: #1a3a7a; }
+  .tag-ergonomic { background: var(--green-soft); color: var(--green); }
+  .tag-other { background: var(--surface2); color: var(--text-mid); }
+
+  /* FORM MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,24,20,.5);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(2px);
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 18px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .modal-body { padding: 20px; }
+
+  .modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* FORM ELEMENTS */
+  .form-group { margin-bottom: 16px; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  input[type=text], input[type=number], input[type=date], select, textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color .15s;
+    outline: none;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  textarea { resize: vertical; min-height: 80px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .help-text {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+  }
+
+  /* CZYNNIKI LIST IN STANOWISKO */
+  .czynniki-picker {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .czynnik-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+
+  .czynnik-row:last-child { border-bottom: none; }
+  .czynnik-row:hover { background: var(--bg); }
+
+  .czynnik-row label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text);
+    margin: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .czynnik-row input[type=checkbox] {
+    width: auto;
+    padding: 0;
+    border: none;
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+  }
+
+  .czynnik-value-input {
+    width: 100px !important;
+    padding: 5px 8px !important;
+    font-size: 12px !important;
+    font-family: var(--mono) !important;
+  }
+
+  /* SKIEROWANIE PANEL */
+  .skierowanie-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .preview-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 12px;
+    color: var(--text-mid);
+    line-height: 1.7;
+  }
+
+  .preview-box strong { color: var(--text); font-weight: 600; }
+
+  .preview-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-light);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  /* ALERTS */
+  .alert {
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .alert-info { background: var(--blue-soft); color: var(--blue); border: 1px solid #b8d0e8; }
+  .alert-success { background: var(--green-soft); color: var(--green); border: 1px solid #b0d4bf; }
+  .alert-warn { background: var(--yellow-soft); color: var(--yellow); border: 1px solid #e0cc88; }
+
+  /* SEARCH */
+  .search-bar {
+    position: relative;
+    max-width: 280px;
+  }
+
+  .search-bar input {
+    padding-left: 32px;
+    background: var(--bg);
+    border-color: var(--border);
+    width: 100%;
+  }
+
+  .search-bar::before {
+    content: '⌕';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light);
+    font-size: 15px;
+    pointer-events: none;
+  }
+
+  /* STANOWISKO CZYNNIKI SUMMARY */
+  .czynnik-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--surface2);
+    font-size: 11px;
+    color: var(--text-mid);
+    margin: 2px;
+    border: 1px solid var(--border);
+  }
+
+  .czynnik-chip .val {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+  }
+
+  /* STATUS badges */
+  .status { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+  .status-aktywny { background: var(--green-soft); color: var(--green); }
+  .status-urlop { background: var(--yellow-soft); color: var(--yellow); }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 11px;
+    color: var(--text-light);
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  /* PRINT / PDF area */
+  #pdf-hidden {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+  }
+
+  @media (max-width: 700px) {
+    .skierowanie-form { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    main { padding: 16px; }
+    nav button { padding: 12px 12px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>&#9632;</span>BHP Skierowania</div>
+  <div class="sep"></div>
+  <div class="header-title">System medycyny pracy</div>
+</header>
+
+<nav id="main-nav">
+  <button class="active" onclick="switchTab('czynniki')">
+    Czynniki szkodliwe <span class="badge" id="badge-czynniki">0</span>
+  </button>
+  <button onclick="switchTab('stanowiska')">
+    Stanowiska pracy <span class="badge" id="badge-stanowiska">0</span>
+  </button>
+  <button onclick="switchTab('pracownicy')">
+    Pracownicy <span class="badge" id="badge-pracownicy">0</span>
+  </button>
+  <button onclick="switchTab('skierowanie')" style="margin-left:auto;">
+    &#10148; Wystaw skierowanie
+  </button>
+</nav>
+
+<main>
+
+  <!-- ===================== CZYNNIKI ===================== -->
+  <div class="tab-panel active" id="panel-czynniki">
+    <div class="page-header">
+      <div>
+        <h1>Czynniki szkodliwe i uciazliwe</h1>
+        <p>Slownik czynnikow wystepujacych w srodowisku pracy</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModalCzynnik()">+ Dodaj czynnik</button>
+    </div>
+
+    <div class="alert alert-info">
+      <span>&#9432;</span>
+      <span>Typ <strong>Numeryczny</strong> wymaga podania wartosci (np. hałas w dB, stezenie w mg/m³). Typ <strong>Wystepowanie</strong> oznacza tylko zaznaczenie obecnosci czynnika.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Lista czynnikow</span>
+        <div class="search-bar">
+          <input type="text" placeholder="Szukaj..." id="search-czynniki" oninput="renderCzynniki()">
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Nazwa czynnika</th>
+            <th>Kategoria</th>
+            <th>Typ wartosci</th>
+            <th>Jednostka</th>
+            <th>NDS / opis</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-czynniki">
+          <tr class="empty-row"><td colspan="6">Brak czynnikow. Dodaj pierwszy.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== STANOWISKA ===================== -->
+  <div class="tab-panel" id="panel-stanowiska">
+    <div class="page-header">
+      <div>
+        <h1>Stanowiska pracy</h1>
+        <p>Przypisz czynniki szkodliwe do kazdego stanowiska</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModalStanowisko()">+ Dodaj stanowisko</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Lista stanowisk</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Nazwa stanowiska</th>
+            <th>Dzial</th>
+            <th>Czynniki szkodliwe</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-stanowiska">
+          <tr class="empty-row"><td colspan="4">Brak stanowisk. Dodaj pierwsze.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== PRACOWNICY ===================== -->
+  <div class="tab-panel" id="panel-pracownicy">
+    <div class="page-header">
+      <div>
+        <h1>Pracownicy</h1>
+        <p>Baza danych pracownikow do wystawiania skireowan</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModalPracownik()">+ Dodaj pracownika</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Lista pracownikow</span>
+        <div class="search-bar">
+          <input type="text" placeholder="Szukaj..." id="search-pracownicy" oninput="renderPracownicy()">
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Imie i nazwisko</th>
+            <th>PESEL</th>
+            <th>Data ur.</th>
+            <th>Stanowisko</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-pracownicy">
+          <tr class="empty-row"><td colspan="6">Brak pracownikow. Dodaj pierwszego.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== SKIEROWANIE ===================== -->
+  <div class="tab-panel" id="panel-skierowanie">
+    <div class="page-header">
+      <div>
+        <h1>Wystaw skierowanie</h1>
+        <p>Skierowanie na badania profilaktyczne (wg rozporzadzenia MZ)</p>
+      </div>
+    </div>
+
+    <div class="skierowanie-form">
+      <div>
+        <div class="card" style="padding:20px;">
+
+          <div class="form-group">
+            <label>Pracownik</label>
+            <select id="sk-pracownik" onchange="updateSkierowaniePreview()">
+              <option value="">-- wybierz pracownika --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Stanowisko (docelowe / aktualne)</label>
+            <select id="sk-stanowisko" onchange="updateSkierowaniePreview()">
+              <option value="">-- wybierz stanowisko --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Rodzaj badan</label>
+            <select id="sk-rodzaj" onchange="updateSkierowaniePreview()">
+              <option value="wstępne">Wstepne</option>
+              <option value="okresowe" selected>Okresowe</option>
+              <option value="kontrolne">Kontrolne</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Data wystawienia</label>
+            <input type="date" id="sk-data" onchange="updateSkierowaniePreview()">
+          </div>
+
+          <div class="form-group">
+            <label>Pracodawca (nazwa firmy)</label>
+            <input type="text" id="sk-pracodawca" placeholder="np. The Company Sp. z o.o." oninput="updateSkierowaniePreview()">
+          </div>
+
+          <div class="form-group">
+            <label>Adres pracodawcy</label>
+            <input type="text" id="sk-adres" placeholder="ul. Przykładowa 1, 00-001 Warszawa" oninput="updateSkierowaniePreview()">
+          </div>
+
+          <div class="form-group">
+            <label>Lekarz medycyny pracy / placowka</label>
+            <input type="text" id="sk-lekarz" placeholder="Nazwa placowki medycznej" oninput="updateSkierowaniePreview()">
+          </div>
+
+          <button class="btn btn-green" style="width:100%;justify-content:center;padding:12px;" onclick="generujPDF()">
+            &#8659; Generuj PDF skierowania
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="preview-label">Podglad danych</div>
+        <div class="preview-box" id="skierowanie-preview">
+          Wybierz pracownika i stanowisko, aby zobaczyc podglad.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>BHP Skierowania v1.0 &nbsp;|&nbsp; Dane przechowywane lokalnie w przegladarce &nbsp;|&nbsp; System medycyny pracy</footer>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- Modal: Czynnik -->
+<div class="modal-overlay" id="modal-czynnik" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-czynnik-title">Dodaj czynnik szkodliwy</h2>
+      <button class="btn btn-ghost" onclick="closeModal('modal-czynnik')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nazwa czynnika *</label>
+        <input type="text" id="cz-nazwa" placeholder="np. Halas, Toluen, Pyly drewna twardego...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Kategoria</label>
+          <select id="cz-kategoria">
+            <option value="noise">Halas / wibracje</option>
+            <option value="chemical">Chemiczny</option>
+            <option value="dust">Py i aerozole</option>
+            <option value="ergonomic">Ergonomiczny</option>
+            <option value="other">Inny / ogolny</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Typ wartosci</label>
+          <select id="cz-typ" onchange="toggleJednostka()">
+            <option value="numeric">Numeryczny (wymaga wartosci)</option>
+            <option value="boolean">Wystepowanie (tak/nie)</option>
+          </select>
+        </div>
+      </div>
+      <div id="grupa-jednostka">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Jednostka miary</label>
+            <input type="text" id="cz-jednostka" placeholder="np. dB, mg/m³, ppm">
+          </div>
+          <div class="form-group">
+            <label>NDS / NDN (wartość normatywna)</label>
+            <input type="number" id="cz-nds" placeholder="np. 85">
+            <div class="help-text">Normatyw dla informacji - opcjonalnie</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Opis / uwagi</label>
+        <textarea id="cz-opis" placeholder="Dodatkowe informacje o czynniku..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-czynnik')">Anuluj</button>
+      <button class="btn btn-primary" onclick="saveCzynnik()">Zapisz czynnik</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Stanowisko -->
+<div class="modal-overlay" id="modal-stanowisko" style="display:none;">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h2 id="modal-stanowisko-title">Dodaj stanowisko pracy</h2>
+      <button class="btn btn-ghost" onclick="closeModal('modal-stanowisko')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nazwa stanowiska *</label>
+          <input type="text" id="st-nazwa" placeholder="np. Operator CNC, Spawacz...">
+        </div>
+        <div class="form-group">
+          <label>Dzial / jednostka</label>
+          <input type="text" id="st-dzial" placeholder="np. Produkcja, IT...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Czynniki szkodliwe na stanowisku</label>
+        <div class="czynniki-picker" id="czynniki-picker-list">
+          <div style="padding:16px;color:var(--text-light);font-size:13px;">Brak zdefiniowanych czynnikow.</div>
+        </div>
+        <div class="help-text">Zaznacz czynniki i podaj wartosci dla czynnikow numerycznych.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-stanowisko')">Anuluj</button>
+      <button class="btn btn-primary" onclick="saveStanowisko()">Zapisz stanowisko</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Pracownik -->
+<div class="modal-overlay" id="modal-pracownik" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-pracownik-title">Dodaj pracownika</h2>
+      <button class="btn btn-ghost" onclick="closeModal('modal-pracownik')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Imie *</label>
+          <input type="text" id="pr-imie" placeholder="Jan">
+        </div>
+        <div class="form-group">
+          <label>Nazwisko *</label>
+          <input type="text" id="pr-nazwisko" placeholder="Kowalski">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>PESEL</label>
+          <input type="text" id="pr-pesel" placeholder="00000000000" maxlength="11">
+        </div>
+        <div class="form-group">
+          <label>Data urodzenia</label>
+          <input type="date" id="pr-data-ur">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stanowisko</label>
+          <select id="pr-stanowisko">
+            <option value="">-- brak / do ustalenia --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status zatrudnienia</label>
+          <select id="pr-status">
+            <option value="aktywny">Aktywny</option>
+            <option value="urlop">Urlop</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nr tel. (opcjonalnie)</label>
+          <input type="text" id="pr-tel" placeholder="+48 600 000 000">
+        </div>
+        <div class="form-group">
+          <label>E-mail (opcjonalnie)</label>
+          <input type="text" id="pr-email" placeholder="jan@firma.pl">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pracownik')">Anuluj</button>
+      <button class="btn btn-primary" onclick="savePracownik()">Zapisz pracownika</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: potwierdzenie usunięcia -->
+<div class="modal-overlay" id="modal-confirm" style="display:none;">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <h2>Potwierdzenie usuniecia</h2>
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;" id="confirm-text">Czy na pewno chcesz usunac ten element?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">Anuluj</button>
+      <button class="btn btn-danger" id="confirm-btn" onclick="">Usun</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========================= STATE =========================
+let DB = {
+  czynniki: [],
+  stanowiska: [],
+  pracownicy: []
+};
+
+let editingId = null;
+
+// ========================= STORAGE =========================
+function saveDB() {
+  localStorage.setItem('bhp_db', JSON.stringify(DB));
+}
+
+function loadDB() {
+  const raw = localStorage.getItem('bhp_db');
+  if (raw) {
+    try { DB = JSON.parse(raw); } catch(e) {}
+  }
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ========================= TABS =========================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  const btns = document.querySelectorAll('nav button');
+  const idx = ['czynniki','stanowiska','pracownicy','skierowanie'].indexOf(tab);
+  if (idx >= 0) btns[idx].classList.add('active');
+  if (tab === 'skierowanie') populateSkierowanieSelects();
+  updateBadges();
+}
+
+// ========================= BADGES =========================
+function updateBadges() {
+  document.getElementById('badge-czynniki').textContent = DB.czynniki.length;
+  document.getElementById('badge-stanowiska').textContent = DB.stanowiska.length;
+  document.getElementById('badge-pracownicy').textContent = DB.pracownicy.length;
+}
+
+// ========================= MODAL HELPERS =========================
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; editingId = null; }
+
+window.addEventListener('click', function(e) {
+  ['modal-czynnik','modal-stanowisko','modal-pracownik','modal-confirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (e.target === el) closeModal(id);
+  });
+});
+
+// ========================= CZYNNIKI =========================
+const KATEGORIA_LABELS = {
+  noise: 'Halas / wibracje',
+  chemical: 'Chemiczny',
+  dust: 'Pyl / aerozol',
+  ergonomic: 'Ergonomiczny',
+  other: 'Inny'
+};
+
+function toggleJednostka() {
+  const typ = document.getElementById('cz-typ').value;
+  document.getElementById('grupa-jednostka').style.display = typ === 'numeric' ? 'block' : 'none';
+}
+
+function openModalCzynnik(id) {
+  editingId = id || null;
+  document.getElementById('modal-czynnik-title').textContent = id ? 'Edytuj czynnik' : 'Dodaj czynnik szkodliwy';
+  if (id) {
+    const c = DB.czynniki.find(x => x.id === id);
+    document.getElementById('cz-nazwa').value = c.nazwa;
+    document.getElementById('cz-kategoria').value = c.kategoria;
+    document.getElementById('cz-typ').value = c.typ;
+    document.getElementById('cz-jednostka').value = c.jednostka || '';
+    document.getElementById('cz-nds').value = c.nds || '';
+    document.getElementById('cz-opis').value = c.opis || '';
+  } else {
+    ['cz-nazwa','cz-jednostka','cz-nds','cz-opis'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('cz-kategoria').value = 'other';
+    document.getElementById('cz-typ').value = 'numeric';
+  }
+  toggleJednostka();
+  openModal('modal-czynnik');
+  setTimeout(() => document.getElementById('cz-nazwa').focus(), 100);
+}
+
+function saveCzynnik() {
+  const nazwa = document.getElementById('cz-nazwa').value.trim();
+  if (!nazwa) { alert('Podaj nazwe czynnika.'); return; }
+
+  const obj = {
+    id: editingId || uid(),
+    nazwa,
+    kategoria: document.getElementById('cz-kategoria').value,
+    typ: document.getElementById('cz-typ').value,
+    jednostka: document.getElementById('cz-jednostka').value.trim(),
+    nds: document.getElementById('cz-nds').value,
+    opis: document.getElementById('cz-opis').value.trim()
+  };
+
+  if (editingId) {
+    DB.czynniki = DB.czynniki.map(c => c.id === editingId ? obj : c);
+  } else {
+    DB.czynniki.push(obj);
+  }
+
+  saveDB();
+  closeModal('modal-czynnik');
+  renderCzynniki();
+  updateBadges();
+}
+
+function deleteCzynnik(id) {
+  document.getElementById('confirm-text').textContent = 'Czy na pewno chcesz usunac ten czynnik? Zostanie rowniez usuniety ze stanowisk.';
+  document.getElementById('confirm-btn').onclick = function() {
+    DB.czynniki = DB.czynniki.filter(c => c.id !== id);
+    DB.stanowiska.forEach(s => { s.czynniki = s.czynniki.filter(c => c.id !== id); });
+    saveDB(); closeModal('modal-confirm'); renderCzynniki(); renderStanowiska(); updateBadges();
+  };
+  openModal('modal-confirm');
+}
+
+function renderCzynniki() {
+  const q = (document.getElementById('search-czynniki').value || '').toLowerCase();
+  const items = DB.czynniki.filter(c => c.nazwa.toLowerCase().includes(q));
+  const tbody = document.getElementById('table-czynniki');
+
+  if (!items.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Brak wynikow.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(c => `
+    <tr>
+      <td><strong>${c.nazwa}</strong>${c.opis ? '<br><span style="font-size:11px;color:var(--text-light)">' + c.opis + '</span>' : ''}</td>
+      <td><span class="tag tag-${c.kategoria}">${KATEGORIA_LABELS[c.kategoria]}</span></td>
+      <td><span class="tag ${c.typ === 'numeric' ? 'tag-numeric' : 'tag-boolean'}">${c.typ === 'numeric' ? 'Numeryczny' : 'Wystepowanie'}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;">${c.jednostka || '-'}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${c.nds ? c.nds + ' ' + (c.jednostka || '') : '-'}</td>
+      <td style="text-align:right;">
+        <button class="btn btn-ghost" onclick="openModalCzynnik('${c.id}')">&#9998;</button>
+        <button class="btn btn-danger btn-ghost" onclick="deleteCzynnik('${c.id}')">&#10005;</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ========================= STANOWISKA =========================
+function openModalStanowisko(id) {
+  editingId = id || null;
+  document.getElementById('modal-stanowisko-title').textContent = id ? 'Edytuj stanowisko' : 'Dodaj stanowisko pracy';
+
+  const existing = id ? DB.stanowiska.find(s => s.id === id) : null;
+
+  if (existing) {
+    document.getElementById('st-nazwa').value = existing.nazwa;
+    document.getElementById('st-dzial').value = existing.dzial || '';
+  } else {
+    document.getElementById('st-nazwa').value = '';
+    document.getElementById('st-dzial').value = '';
+  }
+
+  // Build czynniki picker
+  const container = document.getElementById('czynniki-picker-list');
+  if (!DB.czynniki.length) {
+    container.innerHTML = '<div style="padding:16px;color:var(--text-light);font-size:13px;">Najpierw dodaj czynniki w zakladce "Czynniki".</div>';
+  } else {
+    container.innerHTML = DB.czynniki.map(c => {
+      const assigned = existing ? existing.czynniki.find(x => x.id === c.id) : null;
+      const checked = assigned ? 'checked' : '';
+      const val = assigned ? assigned.wartosc : '';
+      return `
+        <div class="czynnik-row">
+          <label>
+            <input type="checkbox" id="ck-${c.id}" ${checked} onchange="toggleCzynnikValue('${c.id}', '${c.typ}')">
+            ${c.nazwa}
+            ${c.typ === 'numeric' ? '<span style="font-size:11px;color:var(--text-light)">[' + (c.jednostka||'') + ']</span>' : ''}
+          </label>
+          ${c.typ === 'numeric' ? `<input type="number" class="czynnik-value-input" id="val-${c.id}" value="${val}" placeholder="wartosc" ${checked ? '' : 'disabled'}>` : '<span></span>'}
+        </div>
+      `;
+    }).join('');
+  }
+
+  openModal('modal-stanowisko');
+  setTimeout(() => document.getElementById('st-nazwa').focus(), 100);
+}
+
+function toggleCzynnikValue(id, typ) {
+  if (typ !== 'numeric') return;
+  const cb = document.getElementById('ck-' + id);
+  const inp = document.getElementById('val-' + id);
+  if (inp) inp.disabled = !cb.checked;
+}
+
+function saveStanowisko() {
+  const nazwa = document.getElementById('st-nazwa').value.trim();
+  if (!nazwa) { alert('Podaj nazwe stanowiska.'); return; }
+
+  const assignedCzynniki = DB.czynniki
+    .filter(c => document.getElementById('ck-' + c.id)?.checked)
+    .map(c => ({
+      id: c.id,
+      nazwa: c.nazwa,
+      typ: c.typ,
+      jednostka: c.jednostka,
+      wartosc: c.typ === 'numeric' ? (document.getElementById('val-' + c.id)?.value || '') : null
+    }));
+
+  const obj = {
+    id: editingId || uid(),
+    nazwa,
+    dzial: document.getElementById('st-dzial').value.trim(),
+    czynniki: assignedCzynniki
+  };
+
+  if (editingId) {
+    DB.stanowiska = DB.stanowiska.map(s => s.id === editingId ? obj : s);
+  } else {
+    DB.stanowiska.push(obj);
+  }
+
+  saveDB();
+  closeModal('modal-stanowisko');
+  renderStanowiska();
+  updateBadges();
+}
+
+function deleteStanowisko(id) {
+  document.getElementById('confirm-text').textContent = 'Czy na pewno chcesz usunac to stanowisko?';
+  document.getElementById('confirm-btn').onclick = function() {
+    DB.stanowiska = DB.stanowiska.filter(s => s.id !== id);
+    saveDB(); closeModal('modal-confirm'); renderStanowiska(); updateBadges();
+  };
+  openModal('modal-confirm');
+}
+
+function renderStanowiska() {
+  const tbody = document.getElementById('table-stanowiska');
+  if (!DB.stanowiska.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Brak stanowisk.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = DB.stanowiska.map(s => {
+    const chips = s.czynniki.map(c =>
+      `<span class="czynnik-chip">${c.nazwa}${c.wartosc ? '<span class="val">&nbsp;' + c.wartosc + (c.jednostka ? ' ' + c.jednostka : '') + '</span>' : ''}</span>`
+    ).join('');
+
+    return `
+      <tr>
+        <td><strong>${s.nazwa}</strong></td>
+        <td>${s.dzial || '-'}</td>
+        <td>${chips || '<span style="color:var(--text-light);font-size:12px;">brak</span>'}</td>
+        <td style="text-align:right;">
+          <button class="btn btn-ghost" onclick="openModalStanowisko('${s.id}')">&#9998;</button>
+          <button class="btn btn-danger btn-ghost" onclick="deleteStanowisko('${s.id}')">&#10005;</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ========================= PRACOWNICY =========================
+function populateStanowiskaSelect(selectId, selected) {
+  const sel = document.getElementById(selectId);
+  const prev = selected || sel.value;
+  sel.innerHTML = '<option value="">-- brak / do ustalenia --</option>';
+  DB.stanowiska.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.nazwa + (s.dzial ? ' (' + s.dzial + ')' : '');
+    if (prev === s.id) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function openModalPracownik(id) {
+  editingId = id || null;
+  document.getElementById('modal-pracownik-title').textContent = id ? 'Edytuj pracownika' : 'Dodaj pracownika';
+  populateStanowiskaSelect('pr-stanowisko');
+
+  if (id) {
+    const p = DB.pracownicy.find(x => x.id === id);
+    document.getElementById('pr-imie').value = p.imie;
+    document.getElementById('pr-nazwisko').value = p.nazwisko;
+    document.getElementById('pr-pesel').value = p.pesel || '';
+    document.getElementById('pr-data-ur').value = p.dataUr || '';
+    document.getElementById('pr-status').value = p.status;
+    document.getElementById('pr-tel').value = p.tel || '';
+    document.getElementById('pr-email').value = p.email || '';
+    populateStanowiskaSelect('pr-stanowisko', p.stanowiskoId);
+  } else {
+    ['pr-imie','pr-nazwisko','pr-pesel','pr-tel','pr-email'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('pr-data-ur').value = '';
+    document.getElementById('pr-status').value = 'aktywny';
+  }
+
+  openModal('modal-pracownik');
+  setTimeout(() => document.getElementById('pr-imie').focus(), 100);
+}
+
+function savePracownik() {
+  const imie = document.getElementById('pr-imie').value.trim();
+  const nazwisko = document.getElementById('pr-nazwisko').value.trim();
+  if (!imie || !nazwisko) { alert('Podaj imie i nazwisko.'); return; }
+
+  const obj = {
+    id: editingId || uid(),
+    imie, nazwisko,
+    pesel: document.getElementById('pr-pesel').value.trim(),
+    dataUr: document.getElementById('pr-data-ur').value,
+    stanowiskoId: document.getElementById('pr-stanowisko').value,
+    status: document.getElementById('pr-status').value,
+    tel: document.getElementById('pr-tel').value.trim(),
+    email: document.getElementById('pr-email').value.trim()
+  };
+
+  if (editingId) {
+    DB.pracownicy = DB.pracownicy.map(p => p.id === editingId ? obj : p);
+  } else {
+    DB.pracownicy.push(obj);
+  }
+
+  saveDB();
+  closeModal('modal-pracownik');
+  renderPracownicy();
+  updateBadges();
+}
+
+function deletePracownik(id) {
+  document.getElementById('confirm-text').textContent = 'Czy na pewno chcesz usunac tego pracownika?';
+  document.getElementById('confirm-btn').onclick = function() {
+    DB.pracownicy = DB.pracownicy.filter(p => p.id !== id);
+    saveDB(); closeModal('modal-confirm'); renderPracownicy(); updateBadges();
+  };
+  openModal('modal-confirm');
+}
+
+function renderPracownicy() {
+  const q = (document.getElementById('search-pracownicy').value || '').toLowerCase();
+  const items = DB.pracownicy.filter(p =>
+    (p.imie + ' ' + p.nazwisko).toLowerCase().includes(q) ||
+    (p.pesel || '').includes(q)
+  );
+  const tbody = document.getElementById('table-pracownicy');
+
+  if (!items.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Brak wynikow.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(p => {
+    const st = DB.stanowiska.find(s => s.id === p.stanowiskoId);
+    return `
+      <tr>
+        <td><strong>${p.imie} ${p.nazwisko}</strong></td>
+        <td style="font-family:var(--mono);font-size:12px;">${p.pesel || '-'}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${p.dataUr ? formatDate(p.dataUr) : '-'}</td>
+        <td>${st ? st.nazwa : '<span style="color:var(--text-light)">-</span>'}</td>
+        <td><span class="status status-${p.status}">${p.status === 'aktywny' ? 'Aktywny' : 'Urlop'}</span></td>
+        <td style="text-align:right;">
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="openSkierowanieFor('${p.id}')">&#10148; skieruj</button>
+          <button class="btn btn-ghost" onclick="openModalPracownik('${p.id}')">&#9998;</button>
+          <button class="btn btn-danger btn-ghost" onclick="deletePracownik('${p.id}')">&#10005;</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openSkierowanieFor(pracownikId) {
+  switchTab('skierowanie');
+  setTimeout(() => {
+    document.getElementById('sk-pracownik').value = pracownikId;
+    updateSkierowaniePreview();
+  }, 50);
+}
+
+// ========================= SKIEROWANIE =========================
+function populateSkierowanieSelects() {
+  // Pracownicy
+  const sp = document.getElementById('sk-pracownik');
+  const prevP = sp.value;
+  sp.innerHTML = '<option value="">-- wybierz pracownika --</option>';
+  DB.pracownicy.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.imie + ' ' + p.nazwisko + ' (' + (p.pesel || 'brak PESEL') + ')';
+    sp.appendChild(opt);
+  });
+  if (prevP) sp.value = prevP;
+
+  // Stanowiska
+  const ss = document.getElementById('sk-stanowisko');
+  const prevS = ss.value;
+  ss.innerHTML = '<option value="">-- wybierz stanowisko --</option>';
+  DB.stanowiska.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.nazwa + (s.dzial ? ' (' + s.dzial + ')' : '');
+    ss.appendChild(opt);
+  });
+  if (prevS) ss.value = prevS;
+
+  // Default date
+  const dateInput = document.getElementById('sk-data');
+  if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+
+  updateSkierowaniePreview();
+}
+
+function updateSkierowaniePreview() {
+  const pId = document.getElementById('sk-pracownik').value;
+  const sId = document.getElementById('sk-stanowisko').value;
+  const pracownik = DB.pracownicy.find(p => p.id === pId);
+  const stanowisko = DB.stanowiska.find(s => s.id === sId);
+  const rodzaj = document.getElementById('sk-rodzaj').value;
+  const data = document.getElementById('sk-data').value;
+  const pracodawca = document.getElementById('sk-pracodawca').value;
+
+  const preview = document.getElementById('skierowanie-preview');
+
+  if (!pracownik && !stanowisko) {
+    preview.innerHTML = 'Wybierz pracownika i stanowisko, aby zobaczyc podglad.';
+    return;
+  }
+
+  let html = '';
+
+  if (pracownik) {
+    html += `<strong>Pracownik:</strong> ${pracownik.imie} ${pracownik.nazwisko}<br>`;
+    if (pracownik.pesel) html += `<strong>PESEL:</strong> ${pracownik.pesel}<br>`;
+    if (pracownik.dataUr) html += `<strong>Data ur.:</strong> ${formatDate(pracownik.dataUr)}<br>`;
+  }
+
+  html += `<br><strong>Rodzaj badan:</strong> ${rodzaj.charAt(0).toUpperCase() + rodzaj.slice(1)}<br>`;
+  if (data) html += `<strong>Data wystawienia:</strong> ${formatDate(data)}<br>`;
+  if (pracodawca) html += `<strong>Pracodawca:</strong> ${pracodawca}<br>`;
+
+  if (stanowisko) {
+    html += `<br><strong>Stanowisko:</strong> ${stanowisko.nazwa}<br>`;
+    if (stanowisko.dzial) html += `<strong>Dzial:</strong> ${stanowisko.dzial}<br>`;
+    if (stanowisko.czynniki.length) {
+      html += `<br><strong>Czynniki szkodliwe:</strong><br>`;
+      stanowisko.czynniki.forEach(c => {
+        html += `&nbsp;&nbsp;&#9632; ${c.nazwa}`;
+        if (c.wartosc) html += ` <em style="color:var(--accent)">${c.wartosc} ${c.jednostka || ''}</em>`;
+        html += '<br>';
+      });
+    }
+  }
+
+  preview.innerHTML = html;
+}
+
+// ========================= PDF GENERATION =========================
+function formatDate(iso) {
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function generujPDF() {
+  const pId = document.getElementById('sk-pracownik').value;
+  const sId = document.getElementById('sk-stanowisko').value;
+
+  if (!pId || !sId) {
+    alert('Wybierz pracownika i stanowisko przed wygenerowaniem skierowania.');
+    return;
+  }
+
+  const pracownik = DB.pracownicy.find(p => p.id === pId);
+  const stanowisko = DB.stanowiska.find(s => s.id === sId);
+  const rodzaj = document.getElementById('sk-rodzaj').value;
+  const data = document.getElementById('sk-data').value;
+  const pracodawca = document.getElementById('sk-pracodawca').value || '....................';
+  const adres = document.getElementById('sk-adres').value || '....................';
+  const lekarz = document.getElementById('sk-lekarz').value || '....................';
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const L = 20; // left margin
+  const R = 190; // right edge
+  const W = R - L; // usable width
+
+  let y = 20;
+
+  // Helpers
+  function line(x1, y1, x2, y2) { doc.line(x1, y1, x2, y2); }
+  function rect(x, y, w, h) { doc.rect(x, y, w, h); }
+  function txt(text, x, yy, opts) {
+    doc.text(text, x, yy, opts || {});
+  }
+  function setFont(style, size) {
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+  }
+
+  // ---- NAGLOWEK ----
+  setFont('bold', 10);
+  doc.setTextColor(0);
+  txt('SKIEROWANIE NA BADANIA PROFILAKTYCZNE', R/2 + L/2, y, { align: 'center' });
+
+  y += 5;
+  setFont('normal', 8);
+  txt('(wg Rozporzadzenia Ministra Zdrowia i Opieki Spolecznej z dnia 30 maja 1996 r. ze zm.)', R/2 + L/2, y, { align: 'center' });
+
+  y += 8;
+
+  // Linia pozioma
+  doc.setLineWidth(0.5);
+  line(L, y, R, y);
+  y += 7;
+
+  // Rodzaj badan - checkbox style
+  setFont('bold', 9);
+  txt('Rodzaj badan:', L, y);
+  y += 5;
+  setFont('normal', 9);
+
+  const rodzaje = ['wstepne', 'okresowe', 'kontrolne'];
+  const rodzajeLabels = ['wstepne', 'okresowe', 'kontrolne'];
+  let xRodzaj = L;
+  rodzaje.forEach((r, i) => {
+    const checked = r === rodzaj;
+    doc.setLineWidth(0.3);
+    rect(xRodzaj, y - 3.5, 4, 4);
+    if (checked) {
+      doc.setLineWidth(0.5);
+      line(xRodzaj + 0.5, y - 1.5, xRodzaj + 1.8, y);
+      line(xRodzaj + 1.8, y, xRodzaj + 3.5, y - 3);
+    }
+    txt(rodzajeLabels[i], xRodzaj + 5.5, y);
+    xRodzaj += 38;
+  });
+
+  y += 8;
+  doc.setLineWidth(0.3);
+  line(L, y, R, y);
+  y += 7;
+
+  // ---- SEKCJA 1: PRACODAWCA ----
+  setFont('bold', 9);
+  txt('1. Pracodawca (nazwa i adres):', L, y);
+  y += 5;
+  setFont('normal', 9);
+  const pracodawcaLines = doc.splitTextToSize(pracodawca, W);
+  doc.text(pracodawcaLines, L, y);
+  y += pracodawcaLines.length * 4;
+  const adresLines = doc.splitTextToSize(adres, W);
+  doc.text(adresLines, L, y);
+  y += adresLines.length * 4 + 2;
+
+  line(L, y, R, y);
+  y += 7;
+
+  // ---- SEKCJA 2: PRACOWNIK ----
+  setFont('bold', 9);
+  txt('2. Dane osobowe pracownika:', L, y);
+  y += 6;
+  setFont('normal', 9);
+
+  const fullName = `${pracownik.imie} ${pracownik.nazwisko}`;
+  txt('Imie i nazwisko: ', L, y);
+  setFont('bold', 9);
+  txt(fullName, L + 37, y);
+  setFont('normal', 9);
+  y += 5;
+
+  txt('Data urodzenia: ', L, y);
+  txt(pracownik.dataUr ? formatDate(pracownik.dataUr) : '..........', L + 37, y);
+  txt('PESEL: ', L + 100, y);
+  txt(pracownik.pesel || '...........', L + 116, y);
+  y += 5;
+
+  line(L, y, R, y);
+  y += 7;
+
+  // ---- SEKCJA 3: STANOWISKO ----
+  setFont('bold', 9);
+  txt('3. Stanowisko pracy:', L, y);
+  y += 6;
+  setFont('normal', 9);
+
+  const stNazwa = stanowisko.nazwa + (stanowisko.dzial ? ', dzial: ' + stanowisko.dzial : '');
+  const stLines = doc.splitTextToSize(stNazwa, W);
+  doc.text(stLines, L, y);
+  y += stLines.length * 4 + 3;
+
+  line(L, y, R, y);
+  y += 7;
+
+  // ---- SEKCJA 4: CZYNNIKI SZKODLIWE ----
+  setFont('bold', 9);
+  txt('4. Informacje o wystepowaniu na stanowisku pracy czynnikow szkodliwych,', L, y);
+  y += 4;
+  txt('   uciazliwych lub niebezpiecznych dla zdrowia i ich wartosci:', L, y);
+  y += 7;
+  setFont('normal', 8);
+
+  if (!stanowisko.czynniki.length) {
+    txt('Brak przypisanych czynnikow szkodliwych.', L + 4, y);
+    y += 5;
+  } else {
+    stanowisko.czynniki.forEach((c, idx) => {
+      // Bullet
+      doc.setFillColor(0);
+      doc.circle(L + 2, y - 1, 0.8, 'F');
+      let czText = c.nazwa;
+      if (c.wartosc) czText += ': ' + c.wartosc + ' ' + (c.jednostka || '');
+      else if (c.typ === 'boolean') czText += ': wystepuje';
+      const czLines = doc.splitTextToSize(czText, W - 6);
+      doc.text(czLines, L + 5, y);
+      y += czLines.length * 4 + 1;
+
+      if (y > 250) { doc.addPage(); y = 20; }
+    });
+  }
+
+  y += 2;
+  line(L, y, R, y);
+  y += 8;
+
+  // ---- SEKCJA 5: PLACOWKA ----
+  setFont('bold', 9);
+  txt('5. Skierowanie na badania do:', L, y);
+  y += 6;
+  setFont('normal', 9);
+  const lekarzLines = doc.splitTextToSize(lekarz, W);
+  doc.text(lekarzLines, L, y);
+  y += lekarzLines.length * 4 + 3;
+
+  line(L, y, R, y);
+  y += 8;
+
+  // ---- DATA I PODPIS ----
+  setFont('normal', 9);
+  txt('Data wystawienia: ' + (data ? formatDate(data) : '..........'), L, y);
+  y += 12;
+
+  txt('Pieczatka i podpis pracodawcy lub osoby dzialajace w jego imieniu:', L, y);
+  y += 14;
+
+  // Linia na podpis
+  line(L, y, L + 80, y);
+  y += 4;
+  setFont('normal', 7);
+  txt('(podpis i pieczatka)', L + 10, y);
+
+  // ---- STOPKA ----
+  setFont('normal', 7);
+  doc.setTextColor(120);
+  txt('Skierowanie wygenerowane elektronicznie przez system BHP Skierowania', R/2 + L/2, 285, { align: 'center' });
+
+  // Generuj PDF
+  const safeName = (pracownik.imie + '_' + pracownik.nazwisko).replace(/\s+/g, '_');
+  doc.save(`skierowanie_${safeName}_${data || 'brak_daty'}.pdf`);
+}
+
+// ========================= INIT =========================
+function init() {
+  loadDB();
+  renderCzynniki();
+  renderStanowiska();
+  renderPracownicy();
+  updateBadges();
+
+  // Seed demo data if empty
+  if (!DB.czynniki.length) {
+    DB.czynniki = [
+      { id: uid(), nazwa: 'Halas', kategoria: 'noise', typ: 'numeric', jednostka: 'dB(A)', nds: '85', opis: 'Narazenie na halas o rownowaznym poziomie dzwiekowym' },
+      { id: uid(), nazwa: 'Praca przy monitorze ekranowym', kategoria: 'ergonomic', typ: 'boolean', jednostka: '', nds: '', opis: 'Minimum 4 godziny dziennie' },
+      { id: uid(), nazwa: 'Toluen', kategoria: 'chemical', typ: 'numeric', jednostka: 'mg/m³', nds: '100', opis: 'Rozpuszczalnik organiczny' },
+      { id: uid(), nazwa: 'Prace na wysokosci', kategoria: 'other', typ: 'boolean', jednostka: '', nds: '', opis: 'Powyze 1 m' },
+    ];
+    saveDB();
+    renderCzynniki();
+    updateBadges();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
