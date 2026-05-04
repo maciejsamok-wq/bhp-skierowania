@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BHP Skierowania v1.2.3</title>
+<title>BHP Skierowania v1.2.5</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -749,7 +749,7 @@
 
 </main>
 
-<footer>BHP Skierowania &nbsp;<strong style="color:var(--accent)">v1.2.3</strong> &nbsp;|&nbsp; 2026-05-04 &nbsp;|&nbsp; Dane przechowywane lokalnie w przegladarce</footer>
+<footer>BHP Skierowania &nbsp;<strong style="color:var(--accent)">v1.2.5</strong> &nbsp;|&nbsp; 2026-05-04 &nbsp;|&nbsp; Dane przechowywane lokalnie w przegladarce</footer>
 
 <!-- ===================== MODALS ===================== -->
 
@@ -1415,6 +1415,8 @@ function updateSkierowaniePreview() {
 
 
 // ========================= WZOR XLSM (base64) =========================
+
+
 
 
 
@@ -3244,16 +3246,94 @@ const XML_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:wp
     </w:sectPr>
   </w:body>
 </w:document>`;
-
-// Ciagi do zamiany - dokladne wartosci z wzoru
-const T_MIEJSCOWOSC_RUN = `<w:r>
+const T_MRUN    = `<w:r>
         <w:tab/>
       <w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:t>………………………………..</w:t></w:r>`;
 const T_RODZAJ  = `<w:t>………………………………..</w:t>`;
-const T_IMIE    = `<w:t>Pana/Panią: ………………………………………………………………………………………………………………………………………</w:t>`;
-const T_PESEL   = `<w:t>Nr PESEL/ Data urodzenia: ……………………………………………………………………………………………………………………………………..</w:t>`;
-const T_ADRES   = `<w:t>Zamieszkały/a: ……………………………………………………………………………………………………………………………………..</w:t>`;
-const T_STANOW  = `<w:t>…………………………………………………………..</w:t>`;
+const T_IMIE_RUN   = `<w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        </w:rPr>
+        <w:t>Pana/Panią: ………………………………………………………………………………………………………………………………………</w:t>
+      </w:r>`;
+const T_PESEL_RUN  = `<w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        </w:rPr>
+        <w:t>Nr PESEL/ Data urodzenia: ……………………………………………………………………………………………………………………………………..</w:t>
+      </w:r>`;
+const T_ADRES_RUN  = `<w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        </w:rPr>
+        <w:t>Zamieszkały/a: ……………………………………………………………………………………………………………………………………..</w:t>
+      </w:r>`;
+const T_STANOW_RUN = `<w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        </w:rPr>
+        <w:t>Nr PESEL/ Data urodzenia: ……………………………………………………………………………………………………………………………………..</w:t>
+      </w:r>`;
+const RPR_IMIE_U   = `<w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        <w:u w:val="dotted"/></w:rPr>`;
+const RPR_PESEL_U  = `<w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        <w:u w:val="dotted"/></w:rPr>`;
+const RPR_ADRES_U  = `<w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        <w:u w:val="dotted"/></w:rPr>`;
+const RPR_STANOW_U = `<w:rPr>
+          <w:rFonts w:ascii="Calibri" w:eastAsia="Times New Roman" w:hAnsi="Calibri" w:cs="Calibri"/>
+          <w:color w:val="000000"/>
+          <w:kern w:val="0"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+          <w:lang w:eastAsia="pl-PL"/>
+          <w14:ligatures w14:val="none"/>
+        <w:u w:val="dotted"/></w:rPr>`;
 
 // ========================= DOCX GENERATION =========================
 function formatDate(iso) {
@@ -3261,10 +3341,22 @@ function formatDate(iso) {
   const [y,m,d] = iso.split('-');
   return `${d}.${m}.${y}`;
 }
-
 function xe(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function setLeft(xml, pos) {
+  const pprS = xml.lastIndexOf('<w:pPr>', pos);
+  const pprE = xml.indexOf('</w:pPr>', pprS) + 8;
+  if (pprS < 0) return xml;
+  return xml.slice(0, pprS) +
+    xml.slice(pprS, pprE)
+      .replace('<w:jc w:val="right"/>', '<w:jc w:val="left"/>')
+      .replace('<w:jc w:val="center"/>', '<w:jc w:val="left"/>') +
+    xml.slice(pprE);
+}
+function makeDataRun(rprU, data) {
+  return `<w:r>${rprU}<w:t>${xe(data)}</w:t></w:r>`;
 }
 
 async function generujPDF() {
@@ -3274,7 +3366,6 @@ async function generujPDF() {
 
   const pracownik  = DB.pracownicy.find(p => p.id === pId);
   const stanowisko = DB.stanowiska.find(s => s.id === sId);
-
   const kat = (k) => stanowisko.czynniki
     .filter(c => c.kategoria === k)
     .map(c => c.nazwa + (c.wartosc ? ' – ' + c.wartosc + (c.jednostka ? ' ' + c.jednostka : '') : ''))
@@ -3295,28 +3386,42 @@ async function generujPDF() {
 
   let xml = XML_TEMPLATE;
 
-  // 1. Miejscowosc i data - zamien caly run z tabami
-  xml = xml.replace(T_MIEJSCOWOSC_RUN,
+  // 1. Miejscowosc - zamien run z tabami, wyrownanie right zostaje
+  xml = xml.replace(T_MRUN,
     `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${xe(miejscData)}</w:t></w:r>`);
 
-  // 2. Rodzaj badan
+  // 2. Rodzaj badan - wycentrowany
   xml = xml.replace(T_RODZAJ, `<w:t>${xe(rodzaj)}</w:t>`);
 
-  // 3. Imie i nazwisko
-  xml = xml.replace(T_IMIE, `<w:t>${xe(tytul + ' ' + imieNaz)}</w:t>`);
+  // 3. Imie - zamien caly run na: etykieta_run + dane_run(underline), left
+  const imiePos = xml.indexOf(T_IMIE_RUN);
+  xml = xml.replace(T_IMIE_RUN,
+    `<w:r>${RPR_IMIE_U.replace('<w:u w:val="dotted"/>', '')}<w:t xml:space="preserve">Pana/Panią: </w:t></w:r>` +
+    makeDataRun(RPR_IMIE_U, tytul + ' ' + imieNaz));
+  xml = setLeft(xml, imiePos);
 
-  // 4. PESEL
-  xml = xml.replace(T_PESEL, `<w:t>Nr PESEL/ Data urodzenia: ${xe(pesel)}</w:t>`);
+  // 4. PESEL - zamien run, left
+  const peselPos = xml.indexOf(T_PESEL_RUN);
+  xml = xml.replace(T_PESEL_RUN,
+    `<w:r>${RPR_PESEL_U.replace('<w:u w:val="dotted"/>', '')}<w:t xml:space="preserve">Nr PESEL/ Data urodzenia: </w:t></w:r>` +
+    makeDataRun(RPR_PESEL_U, pesel));
+  xml = setLeft(xml, peselPos);
 
-  // 5. Adres
-  xml = xml.replace(T_ADRES, `<w:t>Zamieszkały/a: ${xe(adres)}</w:t>`);
+  // 5. Adres - zamien run, left
+  const adresPos = xml.indexOf(T_ADRES_RUN);
+  xml = xml.replace(T_ADRES_RUN,
+    `<w:r>${RPR_ADRES_U.replace('<w:u w:val="dotted"/>', '')}<w:t xml:space="preserve">Zamieszkały/a: </w:t></w:r>` +
+    makeDataRun(RPR_ADRES_U, adres));
+  xml = setLeft(xml, adresPos);
 
-  // 6. Stanowisko - pierwsze wystapienie T_STANOW (to jest linia stanowiska, paraId 64CAD31B)
-  //    Zastepujemy przez pozycje - najpierw znajdz indeks paraId
+  // 6. Stanowisko przez paraId, left + underline
   const stIdx = xml.indexOf('paraId="64CAD31B"');
   const stTs  = xml.indexOf('<w:t>', stIdx);
   const stTe  = xml.indexOf('</w:t>', stTs) + 6;
-  xml = xml.slice(0, stTs) + `<w:t>${xe(stNazwa)}</w:t>` + xml.slice(stTe);
+  xml = xml.slice(0, stTs - RPR_STANOW_U.length - 5)
+    + makeDataRun(RPR_STANOW_U, stNazwa)
+    + xml.slice(stTe);
+  xml = setLeft(xml, xml.indexOf('paraId="64CAD31B"'));
 
   // 7. Czynniki przez hideMark
   const wartosci = {2:fiz, 5:pyly, 8:chem, 11:bio, 14:inne, 16:String(laczna)};
