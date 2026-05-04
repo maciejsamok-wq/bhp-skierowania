@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BHP Skierowania v1.2.2</title>
+<title>BHP Skierowania v1.2.3</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -749,7 +749,7 @@
 
 </main>
 
-<footer>BHP Skierowania &nbsp;<strong style="color:var(--accent)">v1.2.2</strong> &nbsp;|&nbsp; 2026-05-04 &nbsp;|&nbsp; Dane przechowywane lokalnie w przegladarce</footer>
+<footer>BHP Skierowania &nbsp;<strong style="color:var(--accent)">v1.2.3</strong> &nbsp;|&nbsp; 2026-05-04 &nbsp;|&nbsp; Dane przechowywane lokalnie w przegladarce</footer>
 
 <!-- ===================== MODALS ===================== -->
 
@@ -1415,6 +1415,7 @@ function updateSkierowaniePreview() {
 
 
 // ========================= WZOR XLSM (base64) =========================
+
 
 
 
@@ -3244,6 +3245,16 @@ const XML_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:wp
   </w:body>
 </w:document>`;
 
+// Ciagi do zamiany - dokladne wartosci z wzoru
+const T_MIEJSCOWOSC_RUN = `<w:r>
+        <w:tab/>
+      <w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:t>………………………………..</w:t></w:r>`;
+const T_RODZAJ  = `<w:t>………………………………..</w:t>`;
+const T_IMIE    = `<w:t>Pana/Panią: ………………………………………………………………………………………………………………………………………</w:t>`;
+const T_PESEL   = `<w:t>Nr PESEL/ Data urodzenia: ……………………………………………………………………………………………………………………………………..</w:t>`;
+const T_ADRES   = `<w:t>Zamieszkały/a: ……………………………………………………………………………………………………………………………………..</w:t>`;
+const T_STANOW  = `<w:t>…………………………………………………………..</w:t>`;
+
 // ========================= DOCX GENERATION =========================
 function formatDate(iso) {
   if (!iso) return '';
@@ -3252,12 +3263,8 @@ function formatDate(iso) {
 }
 
 function xe(s) {
-  if (s === null || s === undefined) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 async function generujPDF() {
@@ -3270,107 +3277,79 @@ async function generujPDF() {
 
   const kat = (k) => stanowisko.czynniki
     .filter(c => c.kategoria === k)
-    .map(c => c.nazwa + (c.wartosc ? ' \u2013 ' + c.wartosc + (c.jednostka ? ' ' + c.jednostka : '') : ''))
+    .map(c => c.nazwa + (c.wartosc ? ' – ' + c.wartosc + (c.jednostka ? ' ' + c.jednostka : '') : ''))
     .join(', ');
 
-  const miejscowosc = (document.getElementById('sk-miejscowosc') || {}).value || '';
+  const miejscowosc = (document.getElementById('sk-miejscowosc')||{}).value || '';
   const dataVal     = document.getElementById('sk-data').value || '';
   const miejscData  = [miejscowosc, dataVal ? formatDate(dataVal) : ''].filter(Boolean).join(', ');
   const rodzaj      = document.getElementById('sk-rodzaj').value;
-  const tytul       = pracownik.plec === 'M' ? 'Pana:' : 'Pani\u0105:';
+  const tytul       = pracownik.plec === 'M' ? 'Pana:' : 'Panią:';
   const imieNaz     = pracownik.imie + ' ' + pracownik.nazwisko;
   const pesel       = pracownik.pesel || (pracownik.dataUr ? formatDate(pracownik.dataUr) : '');
   const adres       = pracownik.adresZam || '';
   const stNazwa     = stanowisko.nazwa + (stanowisko.dzial ? ' (' + stanowisko.dzial + ')' : '');
-  const fiz         = kat('fizyczne');
-  const pyly        = kat('pyly');
-  const chem        = kat('chemiczne');
-  const bio         = kat('biologiczne');
-  const inne        = kat('inne');
-  const laczna      = stanowisko.czynniki.length;
+  const fiz  = kat('fizyczne'), pyly = kat('pyly'), chem = kat('chemiczne');
+  const bio  = kat('biologiczne'), inne = kat('inne');
+  const laczna = stanowisko.czynniki.length;
 
   let xml = XML_TEMPLATE;
 
-  // Kazda zamiana uzywa PELNEGO unikalnego ciagu - zadnych kolizji
+  // 1. Miejscowosc i data - zamien caly run z tabami
+  xml = xml.replace(T_MIEJSCOWOSC_RUN,
+    `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${xe(miejscData)}</w:t></w:r>`);
 
-  // 1. Miejscowosc i data - zastap etykiete "miejscowość i data"
-  //    Ale tez usun taby przed i dodaj wyrownanie do prawej
-  const TAB11 = '<w:tab/>\n      <w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:t>\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>';
-  if (xml.includes(TAB11)) {
-    xml = xml.replace(TAB11, '<w:t>' + xe(miejscData) + '</w:t>');
-    // Dodaj wyrownanie do prawej w pPr tego akapitu
-    const mdIdx = xml.indexOf(xe(miejscData));
-    const pprS  = xml.lastIndexOf('<w:pPr>', mdIdx);
-    const pprE  = xml.indexOf('</w:pPr>', pprS);
-    xml = xml.slice(0, pprE) + '<w:jc w:val="right"/>' + xml.slice(pprE);
-  }
+  // 2. Rodzaj badan
+  xml = xml.replace(T_RODZAJ, `<w:t>${xe(rodzaj)}</w:t>`);
 
-  // 2. Rodzaj badan - unikalny ciag (jedyny z 11 kropkami)
-  xml = xml.replace(
-    '<w:t>\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026.</w:t>',
-    '<w:t>' + xe(rodzaj) + '</w:t>');
+  // 3. Imie i nazwisko
+  xml = xml.replace(T_IMIE, `<w:t>${xe(tytul + ' ' + imieNaz)}</w:t>`);
 
-  // 3. Pana/Pania - unikalny (51 kropek z etykieta)
-  xml = xml.replace(
-    '<w:t>Pana/Pani\u0105: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026</w:t>',
-    '<w:t>' + xe(tytul + ' ' + imieNaz) + '</w:t>');
+  // 4. PESEL
+  xml = xml.replace(T_PESEL, `<w:t>Nr PESEL/ Data urodzenia: ${xe(pesel)}</w:t>`);
 
-  // 4. PESEL - unikalny (etykieta + 52 kropki)
-  xml = xml.replace(
-    '<w:t>Nr PESEL/ Data urodzenia: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>',
-    '<w:t>Nr PESEL/ Data urodzenia: ' + xe(pesel) + '</w:t>');
+  // 5. Adres
+  xml = xml.replace(T_ADRES, `<w:t>Zamieszkały/a: ${xe(adres)}</w:t>`);
 
-  // 5. Adres - unikalny (etykieta + 52 kropki)
-  xml = xml.replace(
-    '<w:t>Zamieszka\u0142y/a: \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026..</w:t>',
-    '<w:t>Zamieszka\u0142y/a: ' + xe(adres) + '</w:t>');
+  // 6. Stanowisko - pierwsze wystapienie T_STANOW (to jest linia stanowiska, paraId 64CAD31B)
+  //    Zastepujemy przez pozycje - najpierw znajdz indeks paraId
+  const stIdx = xml.indexOf('paraId="64CAD31B"');
+  const stTs  = xml.indexOf('<w:t>', stIdx);
+  const stTe  = xml.indexOf('</w:t>', stTs) + 6;
+  xml = xml.slice(0, stTs) + `<w:t>${xe(stNazwa)}</w:t>` + xml.slice(stTe);
 
-  // 6. Stanowisko - unikalny paraId 64CAD31B - zastap przez paraId
-  xml = xml.replace(
-    'paraId="64CAD31B"',
-    'paraId="64CAD31B" data-filled="1"');
-  const stPara = xml.indexOf('paraId="64CAD31B" data-filled="1"');
-  const stTstart = xml.indexOf('<w:t>', stPara);
-  const stTend   = xml.indexOf('</w:t>', stTstart) + 6;
-  xml = xml.slice(0, stTstart) + '<w:t>' + xe(stNazwa) + '</w:t>' + xml.slice(stTend);
-
-  // 7. Czynniki - hideMark indeksy 2,5,8,11,14,16
-  const wartosci = {2: fiz, 5: pyly, 8: chem, 11: bio, 14: inne, 16: String(laczna)};
+  // 7. Czynniki przez hideMark
+  const wartosci = {2:fiz, 5:pyly, 8:chem, 11:bio, 14:inne, 16:String(laczna)};
   const hideTag = '<w:hideMark/>';
   const positions = [];
-  let searchFrom = 0;
+  let sf = 0;
   while (true) {
-    const pos = xml.indexOf(hideTag, searchFrom);
-    if (pos === -1) break;
-    positions.push(pos);
-    searchFrom = pos + 1;
+    const p = xml.indexOf(hideTag, sf);
+    if (p === -1) break;
+    positions.push(p); sf = p + 1;
   }
-
   for (const idx of [16,14,11,8,5,2]) {
     if (idx >= positions.length) continue;
-    const pos = positions[idx];
-    const tcEnd = xml.indexOf('</w:tc>', pos);
-    const seg = xml.slice(pos + hideTag.length, tcEnd);
-    const neu = seg.replace(/<w:t>[^<]*<\/w:t>/, '<w:t>' + xe(wartosci[idx]) + '</w:t>');
-    xml = xml.slice(0, pos + hideTag.length) + neu + xml.slice(tcEnd);
+    const p = positions[idx];
+    const tcE = xml.indexOf('</w:tc>', p);
+    const seg = xml.slice(p + hideTag.length, tcE);
+    const neu = seg.replace(/<w:t>[^<]*<\/w:t>/, `<w:t>${xe(wartosci[idx])}</w:t>`);
+    xml = xml.slice(0, p + hideTag.length) + neu + xml.slice(tcE);
   }
 
-  // Buduj docx przez JSZip
+  // Buduj docx
   const bin = atob(WZOR_DOCX_B64);
   const arr = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-
   const zip = await JSZip.loadAsync(arr);
   zip.file('word/document.xml', xml);
-
   const out = await zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     compression: 'DEFLATE',
   });
-
   const url = URL.createObjectURL(out);
-  const a   = document.createElement('a');
+  const a = document.createElement('a');
   a.href = url;
   const safeName = (pracownik.imie + '_' + pracownik.nazwisko).replace(/\s+/g, '_');
   a.download = 'skierowanie_' + safeName + '_' + (dataVal || 'brak_daty') + '.docx';
