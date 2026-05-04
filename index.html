@@ -719,6 +719,11 @@
           </div>
 
           <div class="form-group">
+            <label>Miejscowość wystawienia</label>
+            <input type="text" id="sk-miejscowosc" placeholder="np. Warszawa" oninput="updateSkierowaniePreview()">
+          </div>
+
+          <div class="form-group">
             <label>Pracodawca (nazwa firmy)</label>
             <input type="text" id="sk-pracodawca" placeholder="np. The Company Sp. z o.o." oninput="updateSkierowaniePreview()">
           </div>
@@ -770,11 +775,11 @@
         <div class="form-group">
           <label>Kategoria</label>
           <select id="cz-kategoria">
-            <option value="noise">Halas / wibracje</option>
-            <option value="chemical">Chemiczny</option>
-            <option value="dust">Py i aerozole</option>
-            <option value="ergonomic">Ergonomiczny</option>
-            <option value="other">Inny / ogolny</option>
+            <option value="fizyczne">Czynniki fizyczne</option>
+            <option value="chemiczne">Czynniki chemiczne</option>
+            <option value="biologiczne">Czynniki biologiczne</option>
+            <option value="pyly">Pyly i aerozole</option>
+            <option value="inne">Inne / niebezpieczne</option>
           </select>
         </div>
         <div class="form-group">
@@ -878,6 +883,15 @@
             <option value="">-- brak / do ustalenia --</option>
           </select>
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Płeć</label>
+          <select id="pr-plec">
+            <option value="K">Kobieta (Panią)</option>
+            <option value="M">Mężczyzna (Pana)</option>
+          </select>
+        </div>
         <div class="form-group">
           <label>Status zatrudnienia</label>
           <select id="pr-status">
@@ -885,6 +899,10 @@
             <option value="urlop">Urlop</option>
           </select>
         </div>
+      </div>
+      <div class="form-group">
+        <label>Adres zamieszkania (opcjonalnie)</label>
+        <input type="text" id="pr-adres-zam" placeholder="ul. Przykładowa 1, 00-001 Warszawa">
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -979,11 +997,11 @@ window.addEventListener('click', function(e) {
 
 // ========================= CZYNNIKI =========================
 const KATEGORIA_LABELS = {
-  noise: 'Halas / wibracje',
-  chemical: 'Chemiczny',
-  dust: 'Pyl / aerozol',
-  ergonomic: 'Ergonomiczny',
-  other: 'Inny'
+  fizyczne: 'Czynniki fizyczne',
+  chemiczne: 'Czynniki chemiczne',
+  biologiczne: 'Czynniki biologiczne',
+  pyly: 'Pyly i aerozole',
+  inne: 'Inne czynniki / niebezpieczne'
 };
 
 function toggleJednostka() {
@@ -1061,7 +1079,7 @@ function renderCzynniki() {
   tbody.innerHTML = items.map(c => `
     <tr>
       <td><strong>${c.nazwa}</strong>${c.opis ? '<br><span style="font-size:11px;color:var(--text-light)">' + c.opis + '</span>' : ''}</td>
-      <td><span class="tag tag-${c.kategoria}">${KATEGORIA_LABELS[c.kategoria]}</span></td>
+      <td><span class="tag tag-${c.kategoria === 'fizyczne' ? 'noise' : c.kategoria === 'chemiczne' ? 'chemical' : c.kategoria === 'biologiczne' ? 'chemical' : c.kategoria === 'pyly' ? 'dust' : 'other'}">${KATEGORIA_LABELS[c.kategoria] || c.kategoria}</span></td>
       <td><span class="tag ${c.typ === 'numeric' ? 'tag-numeric' : 'tag-boolean'}">${c.typ === 'numeric' ? 'Numeryczny' : 'Wystepowanie'}</span></td>
       <td style="font-family:var(--mono);font-size:12px;">${c.jednostka || '-'}</td>
       <td style="font-family:var(--mono);font-size:12px;">${c.nds ? c.nds + ' ' + (c.jednostka || '') : '-'}</td>
@@ -1217,11 +1235,14 @@ function openModalPracownik(id) {
     document.getElementById('pr-status').value = p.status;
     document.getElementById('pr-tel').value = p.tel || '';
     document.getElementById('pr-email').value = p.email || '';
+    document.getElementById('pr-plec').value = p.plec || 'K';
+    document.getElementById('pr-adres-zam').value = p.adresZam || '';
     populateStanowiskaSelect('pr-stanowisko', p.stanowiskoId);
   } else {
-    ['pr-imie','pr-nazwisko','pr-pesel','pr-tel','pr-email'].forEach(f => document.getElementById(f).value = '');
+    ['pr-imie','pr-nazwisko','pr-pesel','pr-tel','pr-email','pr-adres-zam'].forEach(f => document.getElementById(f).value = '');
     document.getElementById('pr-data-ur').value = '';
     document.getElementById('pr-status').value = 'aktywny';
+    document.getElementById('pr-plec').value = 'K';
   }
 
   openModal('modal-pracownik');
@@ -1240,6 +1261,8 @@ function savePracownik() {
     dataUr: document.getElementById('pr-data-ur').value,
     stanowiskoId: document.getElementById('pr-stanowisko').value,
     status: document.getElementById('pr-status').value,
+    plec: document.getElementById('pr-plec').value,
+    adresZam: document.getElementById('pr-adres-zam').value.trim(),
     tel: document.getElementById('pr-tel').value.trim(),
     email: document.getElementById('pr-email').value.trim()
   };
@@ -1402,189 +1425,332 @@ function generujPDF() {
   const stanowisko = DB.stanowiska.find(s => s.id === sId);
   const rodzaj = document.getElementById('sk-rodzaj').value;
   const data = document.getElementById('sk-data').value;
-  const pracodawca = document.getElementById('sk-pracodawca').value || '....................';
-  const adres = document.getElementById('sk-adres').value || '....................';
-  const lekarz = document.getElementById('sk-lekarz').value || '....................';
+  const pracodawca = document.getElementById('sk-pracodawca').value || '';
+  const adresPracodawcy = document.getElementById('sk-adres').value || '';
+  const lekarz = document.getElementById('sk-lekarz').value || '';
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  const L = 20; // left margin
-  const R = 190; // right edge
-  const W = R - L; // usable width
+  // Marginesy
+  const ML = 14;   // lewy margines
+  const MR = 196;  // prawy margines
+  const W = MR - ML;
+  // Kolumna z cyframi (I-V) ma szerokosc 8mm
+  const CL = ML + 8; // linia pionowa oddzielajaca numery od tresci
+  const TL = CL + 3; // poczatek tekstu po cyfrach
 
-  let y = 20;
+  let y = 14;
 
-  // Helpers
-  function line(x1, y1, x2, y2) { doc.line(x1, y1, x2, y2); }
-  function rect(x, y, w, h) { doc.rect(x, y, w, h); }
-  function txt(text, x, yy, opts) {
-    doc.text(text, x, yy, opts || {});
-  }
-  function setFont(style, size) {
+  function sf(style, size) {
     doc.setFont('helvetica', style);
     doc.setFontSize(size);
   }
-
-  // ---- NAGLOWEK ----
-  setFont('bold', 10);
-  doc.setTextColor(0);
-  txt('SKIEROWANIE NA BADANIA PROFILAKTYCZNE', R/2 + L/2, y, { align: 'center' });
-
-  y += 5;
-  setFont('normal', 8);
-  txt('(wg Rozporzadzenia Ministra Zdrowia i Opieki Spolecznej z dnia 30 maja 1996 r. ze zm.)', R/2 + L/2, y, { align: 'center' });
-
-  y += 8;
-
-  // Linia pozioma
-  doc.setLineWidth(0.5);
-  line(L, y, R, y);
-  y += 7;
-
-  // Rodzaj badan - checkbox style
-  setFont('bold', 9);
-  txt('Rodzaj badan:', L, y);
-  y += 5;
-  setFont('normal', 9);
-
-  const rodzaje = ['wstepne', 'okresowe', 'kontrolne'];
-  const rodzajeLabels = ['wstepne', 'okresowe', 'kontrolne'];
-  let xRodzaj = L;
-  rodzaje.forEach((r, i) => {
-    const checked = r === rodzaj;
+  function t(text, x, yy, opts) {
+    if (text === null || text === undefined) text = '';
+    doc.text(String(text), x, yy, opts || {});
+  }
+  function hline(yy, x1, x2, lw) {
+    doc.setLineWidth(lw || 0.3);
+    doc.line(x1 !== undefined ? x1 : ML, yy, x2 !== undefined ? x2 : MR, yy);
+  }
+  function vline(x, y1, y2, lw) {
+    doc.setLineWidth(lw || 0.3);
+    doc.line(x, y1, x, y2);
+  }
+  function box(x, bx, by, bw, bh) {
     doc.setLineWidth(0.3);
-    rect(xRodzaj, y - 3.5, 4, 4);
+    doc.rect(bx, by, bw, bh);
+  }
+  function checkBox(x, y, checked) {
+    doc.setLineWidth(0.3);
+    doc.rect(x, y - 3.2, 3.5, 3.5);
     if (checked) {
       doc.setLineWidth(0.5);
-      line(xRodzaj + 0.5, y - 1.5, xRodzaj + 1.8, y);
-      line(xRodzaj + 1.8, y, xRodzaj + 3.5, y - 3);
+      doc.line(x + 0.4, y - 1.5, x + 1.5, y - 0.3);
+      doc.line(x + 1.5, y - 0.3, x + 3.1, y - 3.0);
     }
-    txt(rodzajeLabels[i], xRodzaj + 5.5, y);
-    xRodzaj += 38;
-  });
-
-  y += 8;
-  doc.setLineWidth(0.3);
-  line(L, y, R, y);
-  y += 7;
-
-  // ---- SEKCJA 1: PRACODAWCA ----
-  setFont('bold', 9);
-  txt('1. Pracodawca (nazwa i adres):', L, y);
-  y += 5;
-  setFont('normal', 9);
-  const pracodawcaLines = doc.splitTextToSize(pracodawca, W);
-  doc.text(pracodawcaLines, L, y);
-  y += pracodawcaLines.length * 4;
-  const adresLines = doc.splitTextToSize(adres, W);
-  doc.text(adresLines, L, y);
-  y += adresLines.length * 4 + 2;
-
-  line(L, y, R, y);
-  y += 7;
-
-  // ---- SEKCJA 2: PRACOWNIK ----
-  setFont('bold', 9);
-  txt('2. Dane osobowe pracownika:', L, y);
-  y += 6;
-  setFont('normal', 9);
-
-  const fullName = `${pracownik.imie} ${pracownik.nazwisko}`;
-  txt('Imie i nazwisko: ', L, y);
-  setFont('bold', 9);
-  txt(fullName, L + 37, y);
-  setFont('normal', 9);
-  y += 5;
-
-  txt('Data urodzenia: ', L, y);
-  txt(pracownik.dataUr ? formatDate(pracownik.dataUr) : '..........', L + 37, y);
-  txt('PESEL: ', L + 100, y);
-  txt(pracownik.pesel || '...........', L + 116, y);
-  y += 5;
-
-  line(L, y, R, y);
-  y += 7;
-
-  // ---- SEKCJA 3: STANOWISKO ----
-  setFont('bold', 9);
-  txt('3. Stanowisko pracy:', L, y);
-  y += 6;
-  setFont('normal', 9);
-
-  const stNazwa = stanowisko.nazwa + (stanowisko.dzial ? ', dzial: ' + stanowisko.dzial : '');
-  const stLines = doc.splitTextToSize(stNazwa, W);
-  doc.text(stLines, L, y);
-  y += stLines.length * 4 + 3;
-
-  line(L, y, R, y);
-  y += 7;
-
-  // ---- SEKCJA 4: CZYNNIKI SZKODLIWE ----
-  setFont('bold', 9);
-  txt('4. Informacje o wystepowaniu na stanowisku pracy czynnikow szkodliwych,', L, y);
-  y += 4;
-  txt('   uciazliwych lub niebezpiecznych dla zdrowia i ich wartosci:', L, y);
-  y += 7;
-  setFont('normal', 8);
-
-  if (!stanowisko.czynniki.length) {
-    txt('Brak przypisanych czynnikow szkodliwych.', L + 4, y);
-    y += 5;
-  } else {
-    stanowisko.czynniki.forEach((c, idx) => {
-      // Bullet
-      doc.setFillColor(0);
-      doc.circle(L + 2, y - 1, 0.8, 'F');
-      let czText = c.nazwa;
-      if (c.wartosc) czText += ': ' + c.wartosc + ' ' + (c.jednostka || '');
-      else if (c.typ === 'boolean') czText += ': wystepuje';
-      const czLines = doc.splitTextToSize(czText, W - 6);
-      doc.text(czLines, L + 5, y);
-      y += czLines.length * 4 + 1;
-
-      if (y > 250) { doc.addPage(); y = 20; }
-    });
   }
 
-  y += 2;
-  line(L, y, R, y);
-  y += 8;
+  doc.setTextColor(0, 0, 0);
 
-  // ---- SEKCJA 5: PLACOWKA ----
-  setFont('bold', 9);
-  txt('5. Skierowanie na badania do:', L, y);
-  y += 6;
-  setFont('normal', 9);
-  const lekarzLines = doc.splitTextToSize(lekarz, W);
-  doc.text(lekarzLines, L, y);
-  y += lekarzLines.length * 4 + 3;
+  // ============================================================
+  // NAGLOWEK
+  // ============================================================
+  sf('bold', 11);
+  t('SKIEROWANIE NA BADANIA LEKARSKIE', (ML + MR) / 2, y, { align: 'center' });
+  y += 5.5;
 
-  line(L, y, R, y);
-  y += 8;
-
-  // ---- DATA I PODPIS ----
-  setFont('normal', 9);
-  txt('Data wystawienia: ' + (data ? formatDate(data) : '..........'), L, y);
-  y += 12;
-
-  txt('Pieczatka i podpis pracodawcy lub osoby dzialajace w jego imieniu:', L, y);
-  y += 14;
-
-  // Linia na podpis
-  line(L, y, L + 80, y);
+  // Rodzaj badan - trzy checkboxy w jednej linii
+  sf('normal', 9);
+  const rodzajePDF = [
+    { val: 'wstepne',   label: 'wst\u0119pne' },
+    { val: 'okresowe',  label: 'okresowe' },
+    { val: 'kontrolne', label: 'kontrolne' },
+  ];
+  // wyśrodkowane
+  const totalRodzajW = 3 * 36;
+  let rx = (ML + MR) / 2 - totalRodzajW / 2 + 4;
+  rodzajePDF.forEach(r => {
+    checkBox(rx, y, r.val === rodzaj);
+    t(r.label, rx + 5, y);
+    rx += 36;
+  });
   y += 4;
-  setFont('normal', 7);
-  txt('(podpis i pieczatka)', L + 10, y);
 
-  // ---- STOPKA ----
-  setFont('normal', 7);
-  doc.setTextColor(120);
-  txt('Skierowanie wygenerowane elektronicznie przez system BHP Skierowania', R/2 + L/2, 285, { align: 'center' });
+  // Gwiazdka pod checkboxami
+  sf('normal', 7);
+  t('*) Niepotrzebne skre\u015bli\u0107.', (ML + MR) / 2, y, { align: 'center' });
+  y += 5;
 
-  // Generuj PDF
-  const safeName = (pracownik.imie + '_' + pracownik.nazwisko).replace(/\s+/g, '_');
-  doc.save(`skierowanie_${safeName}_${data || 'brak_daty'}.pdf`);
+  // Gruba linia
+  hline(y, ML, MR, 0.6);
+  y += 0.4;
+
+  // ============================================================
+  // RAMKA GLOWNA - prostokat otaczajacy sekcje I-V
+  // Bedziemy rysowac linie poziome w srodku, a obramowanie na koncu
+  // ============================================================
+  const frameTop = y;
+  const frameX = ML;
+  const frameW = W;
+
+  // ---- SEKCJA I: PRACODAWCA ----
+  const secIy = y;
+  sf('bold', 9);
+  t('I.', ML + 1, y + 4);
+  // Linia pionowa
+  // Tresc
+  sf('normal', 8.5);
+  t('Dzia\u0142aj\u0105c na podstawie art. 229 \u00a7 4a ustawy z dnia 26 czerwca 1974 r. \u2013 Kodeks pracy', TL, y + 3.5);
+  y += 4.5;
+  t('(Dz. U. z 2014\u00a0r. poz. 1502, z p\u00f3\u017an. zm.), kieruj\u0119 na badania lekarskie:', TL, y + 3.5);
+  y += 5;
+
+  // Pania / Pana
+  const plyec = pracownik.plec === 'M' ? 'Pana:' : 'Pani\u0105:';
+  sf('normal', 8.5);
+  t(plyec, TL, y + 3.5);
+  sf('bold', 9);
+  t(pracownik.imie + ' ' + pracownik.nazwisko, TL + 12, y + 3.5);
+  sf('normal', 8.5);
+  y += 5;
+
+  // Nr PESEL / data ur
+  t('Nr PESEL / DATA URODZENIA**): ', TL, y + 3.5);
+  sf('bold', 8.5);
+  const peselOrDataUr = pracownik.pesel || (pracownik.dataUr ? formatDate(pracownik.dataUr) : '');
+  t(peselOrDataUr, TL + 53, y + 3.5);
+  sf('normal', 8.5);
+  y += 5;
+
+  // Zamieszkala
+  t('Zamieszka\u0142\u0105/ego:', TL, y + 3.5);
+  if (pracownik.adresZam) {
+    t(pracownik.adresZam, TL + 28, y + 3.5);
+  }
+  y += 5.5;
+
+  hline(y, ML, MR, 0.3);
+  y += 0.5;
+
+  // ---- SEKCJA II: PRACODAWCA ----
+  sf('bold', 9);
+  t('II.', ML + 0.5, y + 4);
+  sf('normal', 8.5);
+
+  // Oznaczenie pracodawcy w ramce
+  const pracodawcaFull = [pracodawca, adresPracodawcy].filter(Boolean).join(', ');
+  const pracodawcaLines = doc.splitTextToSize(pracodawcaFull || '...........................................................................', W - 12);
+  const pracodawcaBoxH = Math.max(10, pracodawcaLines.length * 4.5 + 4);
+  doc.rect(TL, y + 1, W - 8, pracodawcaBoxH);
+  pracodawcaLines.forEach((ln, i) => {
+    sf('bold', 8.5);
+    t(ln, TL + 2, y + 5 + i * 4.5);
+  });
+  sf('normal', 7);
+  t('(oznaczenie pracodawcy)', TL + 2, y + pracodawcaBoxH + 4);
+  y += pracodawcaBoxH + 7;
+
+  hline(y, ML, MR, 0.3);
+  y += 0.5;
+
+  // ---- SEKCJA III: STANOWISKO ----
+  sf('bold', 9);
+  t('III.', ML, y + 4);
+
+  sf('normal', 8.5);
+  const stText = 'zatrudnion\u0105 na stanowisku lub stanowiskach pracy:';
+  t(stText, TL, y + 4);
+  y += 6;
+
+  // Nazwa stanowiska w ramce
+  const stNazwa = stanowisko.nazwa + (stanowisko.dzial ? ' (' + stanowisko.dzial + ')' : '');
+  const stLines = doc.splitTextToSize(stNazwa, W - 14);
+  const stBoxH = Math.max(8, stLines.length * 4.5 + 4);
+  doc.rect(TL, y, W - 8, stBoxH);
+  stLines.forEach((ln, i) => {
+    sf('bold', 8.5);
+    t(ln, TL + 2, y + 4 + i * 4.5);
+  });
+  sf('normal', 7);
+  t('okre\u015blenie stanowiska/stanowisk*) pracy***): ', TL + 2, y + stBoxH + 3.5);
+  y += stBoxH + 7;
+
+  hline(y, ML, MR, 0.3);
+  y += 0.5;
+
+  // ---- SEKCJA IV: OPIS WARUNKOW PRACY ----
+  sf('bold', 9);
+  t('IV.', ML, y + 3.5);
+  sf('normal', 7.5);
+  const opisHeader = 'Opis warunk\u00f3w pracy uwzgl\u0119dniaj\u0105cy informacje o wyst\u0119powaniu na stanowisku lub stanowiskach pracy czynnik\u00f3w niebezpiecznych,';
+  const opisHeader2 = 'szkodliwych dla zdrowia lub czynnik\u00f3w uci\u0105\u017cliwych i innych wynikaj\u0105cych ze sposobu wykonywania pracy, z podaniem wielko\u015bci nara\u017cenia';
+  const opisHeader3 = 'oraz aktualnych wynik\u00f3w bada\u0144 i pomiar\u00f3w czynnik\u00f3w szkodliwych dla zdrowia, wykonanych na tym stanowisku/stanowiskach \u2013 nale\u017cy wpisa\u0107';
+  const opisHeader4 = 'nazw\u0119 czynnika/czynnik\u00f3w i wielko\u015b\u0107/wielko\u015bci nara\u017cenia****):';
+  t(opisHeader,  TL, y + 3.5);
+  y += 4;
+  t(opisHeader2, TL, y + 3.5);
+  y += 4;
+  t(opisHeader3, TL, y + 3.5);
+  y += 4;
+  t(opisHeader4, TL, y + 3.5);
+  y += 6;
+
+  // Grupuj czynniki wg kategorii MZ
+  const katMZ = [
+    { key: 'fizyczne',    label: 'Czynniki fizyczne:' },
+    { key: 'chemiczne',   label: 'Czynniki chemiczne:' },
+    { key: 'biologiczne', label: 'Czynniki biologiczne:' },
+    { key: 'pyly',        label: 'Py\u0142y:' },
+    { key: 'inne',        label: 'Inne czynniki, w tym niebezpieczne:' },
+  ];
+
+  let totalCzynniki = 0;
+
+  katMZ.forEach(kat => {
+    const items = stanowisko.czynniki.filter(c => c.kategoria === kat.key);
+
+    // Narysuj wiersz kategorii
+    hline(y, ML, MR, 0.2);
+    const rowH = 7;
+
+    // Lewa kolumna - etykieta
+    sf('bold', 8);
+    const labelLines = doc.splitTextToSize(kat.label, 48);
+    labelLines.forEach((ll, li) => t(ll, TL, y + 4 + li * 3.8));
+
+    // Prawa kolumna - czynniki
+    sf('normal', 8);
+    if (items.length) {
+      const czStr = items.map(c => {
+        let s = c.nazwa;
+        if (c.wartosc) s += ' \u2013 ' + c.wartosc + (c.jednostka ? ' ' + c.jednostka : '');
+        return s;
+      }).join(', ');
+      const czLines = doc.splitTextToSize(czStr, W - 60);
+      czLines.forEach((cl, ci) => t(cl, TL + 52, y + 4 + ci * 3.8));
+      totalCzynniki += items.length;
+      y += Math.max(rowH, czLines.length * 3.8 + 3);
+    } else {
+      y += rowH;
+    }
+  });
+
+  hline(y, ML, MR, 0.3);
+  y += 1;
+
+  // Laczna liczba czynnikow
+  sf('normal', 7.5);
+  t('\u0141\u0105czna liczba czynnik\u00f3w niebezpiecznych, szkodliwych dla zdrowia lub czynnik\u00f3w uci\u0105\u017cliwych', TL, y + 4);
+  y += 4;
+  t('i innych wynikaj\u0105cych ze sposobu wykonywania pracy wskazanych w skierowaniu:', TL, y + 4);
+  sf('bold', 10);
+  t(String(totalCzynniki), MR - 15, y + 4);
+  y += 7;
+
+  hline(y, ML, MR, 0.3);
+  y += 0.5;
+
+  // ---- SEKCJA V: SKIEROWANIE DO LEKARZA ----
+  sf('bold', 9);
+  t('V.', ML + 1, y + 4);
+  sf('normal', 8.5);
+
+  // Miejscowosc i data po lewej, oznaczenie pracodawcy po prawej
+  const miejscowosc = document.getElementById('sk-miejscowosc') ? document.getElementById('sk-miejscowosc').value : '';
+  const dataStr = data ? formatDate(data) : '..............';
+  const miejscData = (miejscowosc || '....................') + ', ' + dataStr;
+
+  t(miejscData, TL, y + 4);
+  sf('normal', 7);
+  t('(miejscowo\u015b\u0107 i data)', TL, y + 8.5);
+
+  // Podpis po prawej
+  const podpisX = TL + 90;
+  hline(y + 10, podpisX, MR - 2, 0.3);
+  sf('normal', 7);
+  t('(podpis pracodawcy)', podpisX + 10, y + 14);
+
+  y += 18;
+
+  // Dolna linia ramki
+  hline(y, ML, MR, 0.3);
+  y += 0.5;
+
+  // Linia pionowa (I-V)
+  vline(CL, frameTop, y, 0.3);
+
+  // Obramowanie zewnetrzne
+  doc.setLineWidth(0.4);
+  doc.rect(ML, frameTop, W, y - frameTop);
+
+  y += 5;
+
+  // ============================================================
+  // OBJASNIENIA (drobna czcionka na dole)
+  // ============================================================
+  sf('normal', 6.5);
+  doc.setTextColor(60, 60, 60);
+
+  const objasnienia = [
+    'Obja\u015bnienia:',
+    '*) Niepotrzebne skre\u015bli\u0107.',
+    '**) W przypadku osoby, kt\u00f3rej nie nadano numeru PESEL \u2013 seria, numer i nazwa dokumentu stwierdzaj\u0105cego to\u017csamo\u015b\u0107, a w przypadku osoby przyjmowanej do pracy \u2013 data urodzenia.',
+    '***) Opisa\u0107: rodzaj pracy, podstawowe czynno\u015bci, spos\u00f3b i czas ich wykonywania.',
+    '****) Opis warunk\u00f3w pracy uwzgl\u0119dniaj\u0105cy w szczeg\u00f3lno\u015bci przepisy:',
+    '1) wydane na podstawie:',
+    '    a) art. 222 \u00a7 3 ustawy z dnia 26 czerwca 1974 r. \u2013 Kodeks pracy dotycz\u0105ce wykazu substancji chemicznych, ich mieszanin, czynnik\u00f3w lub proces\u00f3w technologicznych o dzia\u0142aniu rakotwórczym lub mutagennym,',
+    '    b) art. 222\u00b9 \u00a7 3 ustawy z dnia 26 czerwca 1974 r. \u2013 Kodeks pracy dotycz\u0105ce wykazu szkodliwych czynnik\u00f3w biologicznych,',
+    '    c) art. 227 \u00a7 2 ustawy z dnia 26 czerwca 1974 r. \u2013 Kodeks pracy dotycz\u0105ce bada\u0144 i pomiar\u00f3w czynnik\u00f3w szkodliwych dla zdrowia,',
+    '    d) art. 228 \u00a7 3 ustawy z dnia 26 czerwca 1974 r. \u2013 Kodeks pracy dotycz\u0105ce wykazu najwy\u017cszych dopuszczalnych st\u0119\u017ce\u0144 i nat\u0119\u017ce\u0144 czynnik\u00f3w szkodliwych dla zdrowia w \u015brodowisku pracy,',
+    '    e) art. 25 pkt 1 ustawy z dnia 29 listopada 2000 r. \u2013 Prawo atomowe (Dz. U. z 2014\u00a0r. poz. 1512) dotycz\u0105ce dawek granicznych promieniowania jonizuj\u0105cego;',
+    '2) za\u0142\u0105cznika nr 1 do rozporz\u0105dzenia Ministra Zdrowia i Opieki Spo\u0142ecznej z dnia 30 maja 1996 r. w sprawie przeprowadzania bada\u0144 lekarskich pracownik\u00f3w,',
+    '    zakresu profilaktycznej opieki zdrowotnej nad pracownikami oraz orzecze\u0144 lekarskich wydawanych do cel\u00f3w przewidzianych w Kodeksie pracy (Dz. U. Nr 69, poz. 332, z p\u00f3\u017an. zm.)',
+    'Skierowanie na badania lekarskie jest wydawane w dw\u00f3ch egzemplarzach, z kt\u00f3rych jeden otrzymuje osoba kierowana na badania.',
+  ];
+
+  // Sprawdz czy miesci sie na stronie, jesli nie - nowa strona
+  const objasnieniaH = objasnienia.length * 3.5 + 4;
+  if (y + objasnieniaH > 287) {
+    doc.addPage();
+    y = 14;
+  }
+
+  objasnienia.forEach((line, i) => {
+    if (i === 0) { sf('bold', 6.5); } else { sf('normal', 6.5); }
+    const wrappedLines = doc.splitTextToSize(line, W);
+    wrappedLines.forEach((wl, wi) => {
+      t(wl, ML, y);
+      y += 3.3;
+    });
+  });
+
+  // ============================================================
+  // ZAPIS
+  // ============================================================
+  const safeName = (pracownik.imie + '_' + pracownik.nazwisko).replace(/[\s]+/g, '_');
+  doc.save('skierowanie_' + safeName + '_' + (data || 'brak_daty') + '.pdf');
 }
 
 // ========================= INIT =========================
@@ -1598,10 +1764,14 @@ function init() {
   // Seed demo data if empty
   if (!DB.czynniki.length) {
     DB.czynniki = [
-      { id: uid(), nazwa: 'Halas', kategoria: 'noise', typ: 'numeric', jednostka: 'dB(A)', nds: '85', opis: 'Narazenie na halas o rownowaznym poziomie dzwiekowym' },
-      { id: uid(), nazwa: 'Praca przy monitorze ekranowym', kategoria: 'ergonomic', typ: 'boolean', jednostka: '', nds: '', opis: 'Minimum 4 godziny dziennie' },
-      { id: uid(), nazwa: 'Toluen', kategoria: 'chemical', typ: 'numeric', jednostka: 'mg/m³', nds: '100', opis: 'Rozpuszczalnik organiczny' },
-      { id: uid(), nazwa: 'Prace na wysokosci', kategoria: 'other', typ: 'boolean', jednostka: '', nds: '', opis: 'Powyze 1 m' },
+      { id: uid(), nazwa: 'Obsługa monitora ekranowego pow. 4 godz.', kategoria: 'fizyczne', typ: 'boolean', jednostka: '', nds: '', opis: '' },
+      { id: uid(), nazwa: 'Hałas', kategoria: 'fizyczne', typ: 'numeric', jednostka: 'dB(A)', nds: '85', opis: '' },
+      { id: uid(), nazwa: 'Sztuczne oświetlenie', kategoria: 'fizyczne', typ: 'boolean', jednostka: '', nds: '', opis: '' },
+      { id: uid(), nazwa: 'Obciążenia statyczne kręgosłupa', kategoria: 'fizyczne', typ: 'boolean', jednostka: '', nds: '', opis: '' },
+      { id: uid(), nazwa: 'Pył drewna twardego', kategoria: 'pyly', typ: 'numeric', jednostka: 'mg/m³', nds: '2', opis: '' },
+      { id: uid(), nazwa: 'Toluen', kategoria: 'chemiczne', typ: 'numeric', jednostka: 'mg/m³', nds: '100', opis: '' },
+      { id: uid(), nazwa: 'Kierowanie pojazdem kat. B', kategoria: 'inne', typ: 'boolean', jednostka: '', nds: '', opis: '' },
+      { id: uid(), nazwa: 'Stały i duży dopływ informacji i gotowość do odpowiedzi', kategoria: 'inne', typ: 'boolean', jednostka: '', nds: '', opis: '' },
     ];
     saveDB();
     renderCzynniki();
